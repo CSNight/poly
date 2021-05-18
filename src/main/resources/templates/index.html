@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="https://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>保利抢票</title>
+    <link rel="stylesheet" th:href="@{css/elementui.css}">
+    <script th:src="@{js/axios.js}"></script>
+    <script th:src="@{js/vue2.6.12.js}"></script>
+</head>
+<body>
+<div id="app" style="height:100vh;width:100%;display: flex;justify-content: center;align-items: center">
+    <div style="width: 700px;display: block">
+        <el-steps style="width: 100%" align-center :active="active" finish-status="success">
+            <el-step title="填写登录 1"></el-step>
+            <el-step title="选择时间及座位 2"></el-step>
+            <el-step title="开始抢票 3"></el-step>
+        </el-steps>
+        <div style="margin-top:20px;display: flex;align-items: center;justify-content: center">
+            <el-form v-if="active==0" size="mini" style="width: 500px">
+                <el-form-item label="Cookies">
+                    <el-input type="textarea" style="width: 100%" size="mini" :row="5" v-model="cookies"/>
+                </el-form-item>
+                <el-form-item label="演出网页地址URL">
+                    <el-input size="mini" style="width: 100%" v-model="url"/>
+                </el-form-item>
+            </el-form>
+            <el-form v-if="active==1" size="mini" style="width: 500px">
+                <el-form-item label="演出时间">
+                    <el-select size="mini" style="width: 100%" v-model="showTime">
+                        <el-option v-for="item in showList" :key="item.val" :value="item.label"/>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="座位等级">
+                    <el-input-number style="width: 100%" size="mini" :min="1" :max="5" v-model="level"/>
+                </el-form-item>
+            </el-form>
+            <el-form v-if="active==2" size="mini" style="width: 500px">
+                <el-form-item label="取票人姓名">
+                    <el-input size="mini" style="width: 100%" v-model="getTickName"></el-input>
+                </el-form-item>
+                <el-form-item label="观影人">
+                    <el-select size="mini" style="width: 100%" v-model="showWatcher">
+                        <el-option v-for="item in showUserList" :key="item.id" :value="item.label"/>
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" size="mini" @click="startClaw">开始</el-button>
+                </el-form-item>
+            </el-form>
+        </div>
+        <div style="width:100%;display: flex;justify-content: center">
+            <el-button @click="next" size="mini" v-if="active<2">下一步</el-button>
+        </div>
+        <el-divider content-position="center">抢票日志</el-divider>
+        <el-input type="textarea" v-model="log" :rows="10"/>
+    </div>
+</div>
+<script th:src="@{js/element.js}"></script>
+<script type="text/javascript">
+    const vm = new Vue({
+        el: '#app',
+        data: {
+            active: 0,
+            cookies: "",
+            level: 1,
+            url: "",
+            showList: [],
+            showTime: '',
+            log: '',
+            getTickName: "",
+            showWatcher: "",
+            showUserList: []
+        },
+        methods: {
+            next() {
+                if (this.active++ > 2) this.active = 0;
+            },
+            startClaw() {
+                console.log(this.cookies, this.url)
+            }
+        }
+    });
+</script>
+</body>
+</html>

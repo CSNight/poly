@@ -1,0 +1,20 @@
+server:
+  port: 8020
+  servlet:
+    context-path: /
+spring:
+  jackson:
+    serialization:
+      WRITE_DATES_AS_TIMESTAMPS: true
+  servlet:
+    multipart:
+      file-size-threshold: 2MB
+      max-request-size: 2MB
+      max-file-size: 2MB
+  thymeleaf:
+    cache: false
+  output:
+    ansi:
+      enabled: always
+logging:
+  config: classpath:logback-config.xml
