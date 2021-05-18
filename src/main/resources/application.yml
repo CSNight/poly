@@ -13,8 +13,8 @@ spring:
       max-file-size: 2MB
   thymeleaf:
     cache: false
-  output:
-    ansi:
-      enabled: always
 logging:
   config: classpath:logback-config.xml
+websocket:
+  server: 127.0.0.1
+  port: 13245
