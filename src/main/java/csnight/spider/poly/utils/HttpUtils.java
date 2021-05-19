@@ -1,29 +1,28 @@
 package csnight.spider.poly.utils;
 
 
-import org.apache.http.HttpHost;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.serializer.SerializerFeature;
+import csnight.spider.poly.logic.UserService;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.*;
-import org.apache.http.config.Registry;
-import org.apache.http.config.RegistryBuilder;
-import org.apache.http.conn.socket.ConnectionSocketFactory;
-import org.apache.http.conn.socket.PlainConnectionSocketFactory;
-import org.apache.http.conn.ssl.SSLConnectionSocketFactory;
+import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
-import org.apache.http.protocol.HttpContext;
-import org.apache.http.ssl.SSLContexts;
 
 import javax.net.ssl.*;
 import java.io.IOException;
-import java.net.*;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.net.URI;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 
 public class HttpUtils {
     private static PoolingHttpClientConnectionManager cm;
-    private static Registry<ConnectionSocketFactory> reg;
+    private final static String jsonModel = "{\"applicationSource\":\"plat_pc\",\"current\":1,\"size\":10,\"atgc\":\"atoken\",\"utgc\":\"utoken\",\"timestamp\":0,\"applicationCode\":\"plat_pc\"}";
+
     static class IgnoreHostVerification implements HostnameVerifier {
         public boolean verify(String hostname, SSLSession session) {
             return true;
@@ -42,41 +41,6 @@ public class HttpUtils {
         }
     }
 
-    private static class SocksSSLConnectionSocketFactory extends PlainConnectionSocketFactory {
-        @Override
-        public Socket createSocket(final HttpContext context) {
-            InetSocketAddress socksAddr = (InetSocketAddress) context.getAttribute("socks.address");
-            Proxy proxy = new Proxy(Proxy.Type.SOCKS, socksAddr);
-            return new Socket(proxy);
-        }
-
-        @Override
-        public Socket connectSocket(int connectTimeout, Socket socket, HttpHost host, InetSocketAddress remoteAddress, InetSocketAddress localAddress, HttpContext context) throws IOException {
-            InetSocketAddress unresolvedRemote = InetSocketAddress.createUnresolved(host.getHostName(), remoteAddress.getPort());
-            return super.connectSocket(connectTimeout, socket, host, unresolvedRemote, localAddress, context);
-        }
-    }
-
-    private static class MySSLConnectionSocketFactory extends SSLConnectionSocketFactory {
-
-        public MySSLConnectionSocketFactory(final SSLContext sslContext) {
-            super(sslContext);
-        }
-
-        @Override
-        public Socket createSocket(final HttpContext context) throws IOException {
-            InetSocketAddress socksAddr = (InetSocketAddress) context.getAttribute("socks.address");
-            Proxy proxy = new Proxy(Proxy.Type.SOCKS, socksAddr);
-            return new Socket(proxy);
-        }
-
-        @Override
-        public Socket connectSocket(int connectTimeout, Socket socket, HttpHost host, InetSocketAddress remoteAddress, InetSocketAddress localAddress, HttpContext context) throws IOException {
-            InetSocketAddress unresolvedRemote = InetSocketAddress.createUnresolved(host.getHostName(), remoteAddress.getPort());
-            return super.connectSocket(connectTimeout, socket, host, unresolvedRemote, localAddress, context);
-        }
-    }
-
     private static SSLContext ctx = null;
 
     static {
@@ -91,62 +55,13 @@ public class HttpUtils {
         }
     }
 
-    public static HttpURLConnection getDtHttpConnection(String url, String method, String proxyAddr) throws IOException {
-        URI uri = URI.create(url);
-        URL urlReq = new URL(url);
-        URLConnection connection;
-        if (proxyAddr != null && proxyAddr.split(":").length == 3) {
-            String[] proxyInfo = proxyAddr.split(":");
-            Proxy proxy = new Proxy(Proxy.Type.valueOf(proxyInfo[0].toUpperCase()), new InetSocketAddress(proxyInfo[1].replaceAll("//", ""), Integer.parseInt(proxyInfo[2])));
-            connection = urlReq.openConnection(proxy);
-        } else {
-            connection = urlReq.openConnection();
-        }
-        setHttpProperties(connection);
-        if (uri.getScheme().equalsIgnoreCase("HTTP")) {
-            HttpURLConnection httpCon = (HttpURLConnection) connection;
-            httpCon.setInstanceFollowRedirects(true);
-            httpCon.setRequestMethod(method);
-            return httpCon;
-        } else {
-            HttpsURLConnection httpCon = (HttpsURLConnection) connection;
-            httpCon.setInstanceFollowRedirects(true);
-            httpCon.setRequestMethod(method);
-            return httpCon;
-        }
-    }
-
-    private static void setHttpProperties(URLConnection connection) {
-        connection.setConnectTimeout(1000 * 5);
-        connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36");
-        connection.setRequestProperty("Upgrade-Insecure-Requests", "1");
-        connection.setRequestProperty("accept", "*/*");
-        connection.setRequestProperty("connection", "Keep-Alive");
-        connection.setRequestProperty("Proxy-Connection", "keep-alive");
-        connection.setRequestProperty("DNT", "1");
-        connection.setUseCaches(false);
-        connection.setDoInput(true);
-        connection.setReadTimeout(1000 * 20);
-    }
-
-    public static CloseableHttpClient getHttpClient(String url, String proxyAddr) {
+    public static CloseableHttpClient getHttpClient(String url) {
         URI uri = URI.create(url);
         CloseableHttpClient client;
         HttpClientBuilder builder = HttpClientBuilder.create().setMaxConnTotal(10);
-        if (proxyAddr != null && !proxyAddr.contains("socks")) {
-            HttpHost proxy = HttpHost.create(proxyAddr.replaceAll("socks", "socks5"));
-            builder.setProxy(proxy);
-        } else if (proxyAddr != null && proxyAddr.contains("socks")) {
-            if (cm == null) {
-                reg = RegistryBuilder.<ConnectionSocketFactory>create()
-                        .register("http", new SocksSSLConnectionSocketFactory())
-                        .register("https", new MySSLConnectionSocketFactory(SSLContexts.createSystemDefault())).build();
-                cm = new PoolingHttpClientConnectionManager(reg);
-            }
-            builder.setConnectionManager(cm);
-        }
+        builder.setConnectionManager(cm);
         builder.setMaxConnTotal(20);
-        if (uri.getScheme().toUpperCase().equals("HTTPS")) {
+        if (uri.getScheme().equalsIgnoreCase("HTTPS")) {
             client = builder.setSSLContext(ctx).setSSLHostnameVerifier(new IgnoreHostVerification()).build();
         } else {
             client = builder.build();
@@ -160,6 +75,7 @@ public class HttpUtils {
                 .setSocketTimeout(10 * 1000)
                 .setConnectionRequestTimeout(10 * 1000)
                 .setRelativeRedirectsAllowed(true)
+                .setRedirectsEnabled(true)
                 .build();
         HttpRequestBase request;
         switch (method.toUpperCase()) {
@@ -177,19 +93,70 @@ public class HttpUtils {
                 request = new HttpPut(url);
                 break;
         }
-        request.addHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/78.0.3904.108 Safari/537.36");
-        request.addHeader("Upgrade-Insecure-Requests", "1");
-        request.addHeader("accept", "*/*");
-        request.addHeader("Cookie", "NSC_opnbet-cmes-ttm=ffffffff09a49e5445525d5f4f58455e445a4a423660");
-        request.addHeader("connection", "Keep-Alive");
-        request.addHeader("Proxy-Connection", "keep-alive");
-        request.addHeader("DNT", "1");
-        request.addHeader("Sec-Fetch-Mode", "navigate");
-        request.addHeader("Sec-Fetch-Site", "same-origin");
-        request.addHeader("Sec-Fetch-User", "?1");
-        request.addHeader("Accept-Encoding", "gzip, deflate");
+        request.addHeader("Accept", "*/*");
+        request.addHeader("Content-Type", "application/json");
+        request.addHeader("Accept-Encoding", "gzip, deflate, br");
+        request.addHeader("Connection", "keep-alive");
+        request.addHeader("httpType", "index");
+        request.addHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36");
+        request.addHeader("Origin", "https://www.polyt.cn");
+        request.addHeader("Referer", "https://www.polyt.cn");
+        request.addHeader("Host", "platformpcgateway.polyt.cn");
+        request.addHeader("sec-ch-ua", "'Not A;Brand';v='99', 'Chromium';v='90', 'Google Chrome';v='90'");
+        request.addHeader("sec-ch-ua-mobile", "?0");
+        request.addHeader("Sec-Fetch-Dest", "empty");
+        request.addHeader("Sec-Fetch-Mode", "cors");
+        request.addHeader("Sec-Fetch-Site", "same-site:");
         request.setConfig(config);
         return request;
+    }
+
+    public static String reqProcessor(String url, String method, JSONObject body) {
+        String result = "";
+        HttpRequestBase requestBase = HttpUtils.getHttpRequest(url, method);
+        try {
+            requestBase.addHeader("Cookie", ReflectUtils.getBean(UserService.class).getUserSession());
+            JSONObject model = JSONObject.parseObject(jsonModel);
+            model.put("timestamp", System.currentTimeMillis());
+            if (body != null) {
+                body.put("requestModel", model);
+                String sortBody = JSONObject.toJSONString(body, SerializerFeature.SortField);
+                String aToken = IdentifyUtils.string2MD5(sortBody + "plat_pc", "");
+                body.getJSONObject("requestModel").put("atoken", aToken);
+                if (method.equals("POST")) {
+                    HttpPost req = (HttpPost) requestBase;
+                    req.setEntity(new StringEntity(body.toString()));
+                }
+            }
+        } catch (Exception e) {
+            result = extractStackTrace(e);
+            e.printStackTrace();
+            return result;
+        }
+        try (CloseableHttpClient client = HttpUtils.getHttpClient(url);
+             CloseableHttpResponse response = client.execute(requestBase)) {
+            if (response.getStatusLine().getStatusCode() == 307) {
+                CloseableHttpResponse redResp = client.execute(requestBase);
+                byte[] respBytes = redResp.getEntity().getContent().readAllBytes();
+                result = new String(respBytes);
+                redResp.close();
+            } else {
+                byte[] respBytes = response.getEntity().getContent().readAllBytes();
+                result = new String(respBytes);
+            }
+        } catch (Exception ex) {
+            result = extractStackTrace(ex);
+            ex.printStackTrace();
+        }
+        return result;
+    }
+
+    public static String extractStackTrace(Throwable var0) {
+        StringWriter var1 = new StringWriter();
+        PrintWriter var2 = new PrintWriter(var1);
+        var0.printStackTrace(var2);
+        var2.flush();
+        return var1.toString();
     }
 
     public static void CloseHttpClient(CloseableHttpClient client) {
