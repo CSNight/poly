@@ -48,6 +48,42 @@
                     <el-input type="textarea" style="width: 100%" size="mini" :row="5"
                               v-model="userForm.cookie"></el-input>
                 </el-form-item>
+                <el-form-item style="height: 40px" v-if="checkIf">
+                    <div id="nc" style="width: 100%"></div>
+                    <script>
+                        // 实例化nc
+                        AWSC.use("nc", function (state, module) {
+                            // 初始化
+                            window.nc = module.init({
+                                // 应用类型标识。它和使用场景标识（scene字段）一起决定了滑动验证的业务场景与后端对应使用的策略模型。您可以在人机验证控制台的配置管理页签找到对应的appkey字段值，请务必正确填写。
+                                appkey: 'FFFF0N00000000009D3A',
+                                //使用场景标识。它和应用类型标识（appkey字段）一起决定了滑动验证的业务场景与后端对应使用的策略模型。您可以在人机验证控制台的配置管理页签找到对应的scene值，请务必正确填写。
+                                scene: 'nc_login_h5',
+                                // 声明滑动验证需要渲染的目标ID。
+                                renderTo: 'nc',
+                                //前端滑动验证通过时会触发该回调参数。您可以在该回调参数中将会话ID（sessionId）、签名串（sig）、请求唯一标识（token）字段记录下来，随业务请求一同发送至您的服务端调用验签。
+                                success: (data) => {
+                                    this.$emit('success', {
+                                        token: data.token,
+                                        sessionId: data.sessionId,
+                                        sig: data.sig
+                                    })
+                                    console.log(data.sessionId)
+                                    console.log(data.sig)
+                                    console.log(data.token)
+                                },
+                                // 滑动验证失败时触发该回调参数。
+                                fail: (failCode) => {
+                                    console.log('fail', failCode)
+                                },
+                                // 验证码加载出现异常时触发该回调参数。
+                                error: (errorCode) => {
+                                    console.log('error', errorCode)
+                                }
+                            });
+                        })
+                    </script>
+                </el-form-item>
             </el-form>
             <el-form v-if="active==1" size="mini" style="width: 500px">
                 <el-form-item label="演出网页地址URL">
@@ -103,6 +139,7 @@
             active: 0,
             showList: [],
             log: '',
+            checkIf: true,
             showUserList: [],
             service: axios.create({
                 baseURL: "http://127.0.0.1:8020/", // url = base url + request url
