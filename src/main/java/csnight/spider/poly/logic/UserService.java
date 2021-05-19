@@ -7,6 +7,7 @@ import csnight.spider.poly.model.UserObserver;
 import csnight.spider.poly.rest.dto.UserDto;
 import csnight.spider.poly.utils.HttpUtils;
 import csnight.spider.poly.utils.JSONUtils;
+import csnight.spider.poly.websocket.WebSocketServer;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -26,7 +27,13 @@ public class UserService {
     public String AddLoginSession(UserDto dto) {
         this.userSession = dto.getCookie();
         polyUser.setPhone(dto.getPhone());
-        return this.CheckLogin();
+        String check = this.CheckLogin();
+        WebSocketServer.getInstance().broadcast("登录检查：" + check);
+        String check1 = this.GetLoginUserInfo();
+        WebSocketServer.getInstance().broadcast("获取用户信息：" + check1);
+        List<UserObserver> observers = this.GetObserverList();
+        WebSocketServer.getInstance().broadcast("获取观影人列表：" + check1);
+        return check.equals("success") && check1.equals("success") && observers.size() > 0 ? "success" : "failed";
     }
 
     public String CheckLogin() {
