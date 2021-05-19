@@ -51,6 +51,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
     @Override
     public void channelInactive(final ChannelHandlerContext ctx) throws Exception {
         super.channelInactive(ctx);
+        WebSocketServer.getInstance().getChannelGroup().remove(ctx.channel());
         System.out.println("Remote Client disconnected!");
         ctx.close();
     }
@@ -61,19 +62,8 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
             InetSocketAddress inSocket = (InetSocketAddress) ctx.channel().remoteAddress();
             String clientIP = inSocket.getAddress().getHostAddress();
             logger.info("Client from " + clientIP + " connect");
-            WebSocketServerProtocolHandler.HandshakeComplete complete = (WebSocketServerProtocolHandler.HandshakeComplete) evt;
-            Map<String, String> params = new HashMap<>();
-            QueryStringDecoder decoder = new QueryStringDecoder(complete.requestUri());
-            if (decoder.parameters() != null) {
-                decoder.parameters().forEach((key, value) -> {
-                    params.put(key, value.get(0));
-                });
-                ctx.channel().writeAndFlush(new TextWebSocketFrame());
-
-            } else {
-                ctx.channel().close();
-                ctx.fireChannelInactive();
-            }
+            ctx.channel().writeAndFlush(new TextWebSocketFrame("connected"));
+            WebSocketServer.getInstance().getChannelGroup().add(ctx.channel());
         }
     }
 
@@ -95,7 +85,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
     }
 
     private String getWebSocketLocation(FullHttpRequest req, String uri) {
-        return "wss://" + req.headers().get(HttpHeaderNames.HOST) + uri;
+        return "ws://" + req.headers().get(HttpHeaderNames.HOST) + uri;
     }
 
     private void handleWebSocketFrame(ChannelHandlerContext ctx, WebSocketFrame frame) {
@@ -127,6 +117,7 @@ public class WebSocketServerHandler extends SimpleChannelInboundHandler<Object> 
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+        cause.printStackTrace();
         logger.warn(cause.getMessage());
     }
 

@@ -22,6 +22,10 @@ public class WebSocketServer {
     private String host;
     private int port;
 
+    public ChannelGroup getChannelGroup() {
+        return channelGroup;
+    }
+
     public static WebSocketServer getInstance() {
         if (ourInstance == null) {
             synchronized (WebSocketServer.class) {
