@@ -6,6 +6,8 @@
     <link rel="stylesheet" th:href="@{css/elementui.css}">
     <script th:src="@{js/axios.js}"></script>
     <script th:src="@{js/vue2.6.12.js}"></script>
+    <script th:src="@{js/websocket.js}"></script>
+    <script src="https://g.alicdn.com/AWSC/AWSC/awsc.js"></script>
     <style>
         html, body {
             padding: 0;
@@ -39,17 +41,18 @@
         </el-steps>
         <div style="margin-top:20px;display: flex;align-items: center;justify-content: center">
             <el-form v-if="active==0" size="mini" style="width: 500px">
-                <el-form-item label="Cookies">
+                <el-form-item label="电话">
                     <el-input style="width: 100%" size="mini" v-model="userForm.phone"/>
                 </el-form-item>
                 <el-form-item label="Cookies">
-                    <el-input type="textarea" style="width: 100%" size="mini" :row="5" v-model="userForm.cookies"/>
-                </el-form-item>
-                <el-form-item label="演出网页地址URL">
-                    <el-input size="mini" style="width: 100%" v-model="showForm.url"/>
+                    <el-input type="textarea" style="width: 100%" size="mini" :row="5"
+                              v-model="userForm.cookie"></el-input>
                 </el-form-item>
             </el-form>
             <el-form v-if="active==1" size="mini" style="width: 500px">
+                <el-form-item label="演出网页地址URL">
+                    <el-input size="mini" @change="loadShowInfo" style="width: 100%" v-model="showForm.url"/>
+                </el-form-item>
                 <el-form-item label="演出时间">
                     <el-select size="mini" style="width: 100%" v-model="showForm.showTime">
                         <el-option v-for="item in showList" :key="item.val" :value="item.label"/>
@@ -82,12 +85,13 @@
 </div>
 <script th:src="@{js/element.js}"></script>
 <script type="text/javascript">
+    Vue.prototype.$dws = new websocket();
     const vm = new Vue({
         el: '#app',
         data: {
             userForm: {
                 phone: "",
-                cookies: "",
+                cookie: "",
             },
             showForm: {
                 url: "",
@@ -99,11 +103,41 @@
             active: 0,
             showList: [],
             log: '',
-            showUserList: []
+            showUserList: [],
+            service: axios.create({
+                baseURL: "http://127.0.0.1:8020/", // url = base url + request url
+                withCredentials: true, // send cookies when cross-domain requests
+                timeout: 50000, // request timeout
+            })
+        },
+        mounted() {
+            this.$nextTick(() => {
+                this.$dws.on("msg", (e) => {
+                    this.log += `${new Date().toLocaleString()} ${e} \n`;
+                }, "123");
+                this.$dws.connect("ws://127.0.0.1:13245/websocket_stream");
+            })
         },
         methods: {
             next() {
+                if (this.active === 0) {
+                    this.getUser(this.userForm).then((resp) => {
+                        if (resp.data.status === 200 && resp.data.code === 'OK') {
+                            this.nextStep();
+                        }
+                    })
+                } else if (this.active === 1) {
+
+                }
+            },
+            nextStep() {
                 if (this.active++ > 2) this.active = 0;
+            },
+            getUser(dto) {
+                return this.service.post("user/addUserSession", dto)
+            },
+            loadShowInfo() {
+
             },
             startClaw() {
                 console.log(this.cookies, this.url)
