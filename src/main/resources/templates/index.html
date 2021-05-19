@@ -40,28 +40,31 @@
         <div style="margin-top:20px;display: flex;align-items: center;justify-content: center">
             <el-form v-if="active==0" size="mini" style="width: 500px">
                 <el-form-item label="Cookies">
-                    <el-input type="textarea" style="width: 100%" size="mini" :row="5" v-model="cookies"/>
+                    <el-input style="width: 100%" size="mini" v-model="userForm.phone"/>
+                </el-form-item>
+                <el-form-item label="Cookies">
+                    <el-input type="textarea" style="width: 100%" size="mini" :row="5" v-model="userForm.cookies"/>
                 </el-form-item>
                 <el-form-item label="演出网页地址URL">
-                    <el-input size="mini" style="width: 100%" v-model="url"/>
+                    <el-input size="mini" style="width: 100%" v-model="showForm.url"/>
                 </el-form-item>
             </el-form>
             <el-form v-if="active==1" size="mini" style="width: 500px">
                 <el-form-item label="演出时间">
-                    <el-select size="mini" style="width: 100%" v-model="showTime">
+                    <el-select size="mini" style="width: 100%" v-model="showForm.showTime">
                         <el-option v-for="item in showList" :key="item.val" :value="item.label"/>
                     </el-select>
                 </el-form-item>
                 <el-form-item label="座位等级">
-                    <el-input-number style="width: 100%" size="mini" :min="1" :max="5" v-model="level"/>
+                    <el-input-number style="width: 100%" size="mini" :min="1" :max="5" v-model="showForm.level"/>
                 </el-form-item>
             </el-form>
             <el-form v-if="active==2" size="mini" style="width: 500px">
                 <el-form-item label="取票人姓名">
-                    <el-input size="mini" style="width: 100%" v-model="getTickName"></el-input>
+                    <el-input size="mini" style="width: 100%" v-model="showForm.getTickName"></el-input>
                 </el-form-item>
                 <el-form-item label="观影人">
-                    <el-select size="mini" style="width: 100%" v-model="showWatcher">
+                    <el-select size="mini" style="width: 100%" v-model="showForm.showWatcher">
                         <el-option v-for="item in showUserList" :key="item.id" :value="item.label"/>
                     </el-select>
                 </el-form-item>
@@ -82,15 +85,20 @@
     const vm = new Vue({
         el: '#app',
         data: {
+            userForm: {
+                phone: "",
+                cookies: "",
+            },
+            showForm: {
+                url: "",
+                level: 1,
+                showTime: '',
+                getTickName: "",
+                showWatcher: "",
+            },
             active: 0,
-            cookies: "",
-            level: 1,
-            url: "",
             showList: [],
-            showTime: '',
             log: '',
-            getTickName: "",
-            showWatcher: "",
             showUserList: []
         },
         methods: {
