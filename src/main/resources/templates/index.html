@@ -41,48 +41,22 @@
         </el-steps>
         <div style="margin-top:20px;display: flex;align-items: center;justify-content: center">
             <el-form v-if="active==0" size="mini" style="width: 500px">
-                <el-form-item label="电话">
-                    <el-input style="width: 100%" size="mini" v-model="userForm.phone"/>
+                <el-form-item label="电话" prop="phone" required>
+                    <el-input style="width: 100%" size="mini" v-model="userForm.phone" @input="verifyPhone"/>
                 </el-form-item>
-                <el-form-item label="Cookies">
-                    <el-input type="textarea" style="width: 100%" size="mini" :row="5"
-                              v-model="userForm.cookie"></el-input>
+                <el-form-item v-if="showCodeInput" label="验证码" prop="phoneCode" required>
+                    <el-input style="width: 100%" size="mini" v-model="userForm.phoneCode">
+                        <el-button v-if="!showCountDown" style="padding-right:10px" slot="suffix" @click="getPhoneCheck"
+                                   type="text">获取验证码
+                        </el-button>
+                        <div v-if="showCountDown" style="padding-right:10px" slot="suffix">{{countDown}}秒后重新获取</div>
+                    </el-input>
                 </el-form-item>
-                <el-form-item style="height: 40px" v-if="checkIf">
-                    <div id="nc" style="width: 100%"></div>
-                    <script>
-                        // 实例化nc
-                        AWSC.use("nc", function (state, module) {
-                            // 初始化
-                            window.nc = module.init({
-                                // 应用类型标识。它和使用场景标识（scene字段）一起决定了滑动验证的业务场景与后端对应使用的策略模型。您可以在人机验证控制台的配置管理页签找到对应的appkey字段值，请务必正确填写。
-                                appkey: 'FFFF0N00000000009D3A',
-                                //使用场景标识。它和应用类型标识（appkey字段）一起决定了滑动验证的业务场景与后端对应使用的策略模型。您可以在人机验证控制台的配置管理页签找到对应的scene值，请务必正确填写。
-                                scene: 'nc_login_h5',
-                                // 声明滑动验证需要渲染的目标ID。
-                                renderTo: 'nc',
-                                //前端滑动验证通过时会触发该回调参数。您可以在该回调参数中将会话ID（sessionId）、签名串（sig）、请求唯一标识（token）字段记录下来，随业务请求一同发送至您的服务端调用验签。
-                                success: (data) => {
-                                    this.$emit('success', {
-                                        token: data.token,
-                                        sessionId: data.sessionId,
-                                        sig: data.sig
-                                    })
-                                    console.log(data.sessionId)
-                                    console.log(data.sig)
-                                    console.log(data.token)
-                                },
-                                // 滑动验证失败时触发该回调参数。
-                                fail: (failCode) => {
-                                    console.log('fail', failCode)
-                                },
-                                // 验证码加载出现异常时触发该回调参数。
-                                error: (errorCode) => {
-                                    console.log('error', errorCode)
-                                }
-                            });
-                        })
-                    </script>
+                <el-form-item style="height: 40px">
+                    <div id="nc" style="width: 100%" v-if="checkIf"></div>
+                </el-form-item>
+                <el-form-item>
+                    <el-button size="mini" @click="login">登录</el-button>
                 </el-form-item>
             </el-form>
             <el-form v-if="active==1" size="mini" style="width: 500px">
@@ -125,9 +99,10 @@
     const vm = new Vue({
         el: '#app',
         data: {
+            token: "",
             userForm: {
                 phone: "",
-                cookie: "",
+                phoneCode: "",
             },
             showForm: {
                 url: "",
@@ -138,8 +113,12 @@
             },
             active: 0,
             showList: [],
+            ncModel: null,
+            showCodeInput: false,
             log: '',
             checkIf: true,
+            showCountDown: false,
+            countDown: 60,
             showUserList: [],
             service: axios.create({
                 baseURL: "http://127.0.0.1:8020/", // url = base url + request url
@@ -149,6 +128,7 @@
         },
         mounted() {
             this.$nextTick(() => {
+                this.getToken();
                 this.$dws.on("msg", (e) => {
                     this.log += `${new Date().toLocaleString()} ${e} \n`;
                 }, "123");
@@ -158,7 +138,7 @@
         methods: {
             next() {
                 if (this.active === 0) {
-                    this.getUser(this.userForm).then((resp) => {
+                    this.checkUser(this.userForm).then((resp) => {
                         if (resp.data.status === 200 && resp.data.code === 'OK') {
                             this.nextStep();
                         }
@@ -170,14 +150,108 @@
             nextStep() {
                 if (this.active++ > 2) this.active = 0;
             },
-            getUser(dto) {
-                return this.service.post("user/addUserSession", dto)
+            getToken() {
+                this.service.get("user/getToken").then((resp) => {
+                    if (resp.data.status === 200 && resp.data.code === 'OK') {
+                        this.token = resp.data.message;
+                        window.localStorage.setItem("token", this.token)
+                    }
+                })
+            },
+            checkUser(dto) {
+                return this.service.get("user/checkUser", dto)
+            },
+            getPhoneCheck() {
+                let dto = {
+                    checkModel: JSON.stringify(this.ncModel),
+                    code: "",
+                    loginFlag: false,
+                    phoneArea: "86",
+                    phone: this.userForm.phone,
+                    phoneCode: ""
+                }
+                this.service.post("user/sendPhone", dto).then((resp) => {
+                    if (resp.data.status === 200 && resp.data.code === 'OK') {
+                        this.showCountDown = true;
+                        this.countDownCode();
+                    }
+                })
+            },
+            countDownCode() {
+                this.intVal = setInterval(() => {
+                    this.countDown--;
+                    if (this.countDown === 0) {
+                        clearInterval(this.intVal);
+                        this.showCountDown = false;
+                    }
+                }, 1000)
+            },
+            login() {
+                let dto = {
+                    checkModel: JSON.stringify(this.ncModel),
+                    code: "",
+                    loginFlag: false,
+                    phoneArea: "86",
+                    phone: this.userForm.phone,
+                    phoneCode: this.userForm.phoneCode
+                }
+                this.service.post("user/login", dto).then((resp) => {
+                    if (resp.data.status === 200 && resp.data.code === 'OK') {
+
+                    }
+                })
             },
             loadShowInfo() {
 
             },
             startClaw() {
-                console.log(this.cookies, this.url)
+                console.log(this.cookie, this.url)
+            },
+            verifyPhone(e) {
+                let list = []
+                let result = true
+                let msg = ''
+                var isPhone = /^1\d{10}$/
+                if (e != null && e !== "") {
+                    if (!isPhone.test(e)) {
+                        msg = '手机号码格式不正确'
+                    } else {
+                        result = false
+                    }
+                } else {
+                    msg = '手机号码不能为空'
+                }
+                list.push(result)
+                list.push(msg)
+                this.checkIf = !list[0];
+                if (this.checkIf) {
+                    this.$nextTick(() => {
+                        this.initNc()
+                    })
+                } else {
+                    window.ncModel = null
+                }
+            },
+            initNc() {
+                let thisCallback = this
+                AWSC.use("nc", function (state, module) {
+                    window.nc = module.init({
+                        appkey: 'FFFF0N00000000009D3A', scene: 'nc_login_h5', renderTo: 'nc',
+                        success: (data) => {
+                            thisCallback.ncModel = data
+                            thisCallback.showCodeInput = true;
+                            console.log(data.sessionId)
+                            console.log(data.sig)
+                            console.log(data.token)
+                        },
+                        fail: (failCode) => {
+                            console.log('fail', failCode)
+                        },
+                        error: (errorCode) => {
+                            console.log('error', errorCode)
+                        }
+                    });
+                })
             }
         }
     });
