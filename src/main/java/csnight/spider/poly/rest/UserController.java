@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 import javax.annotation.Resource;
 import javax.validation.Valid;
 
+@ApiOperation(value = "用户管理")
 @RestController
 @RequestMapping(value = "user")
 public class UserController {
