@@ -5,11 +5,13 @@ import java.util.List;
 
 public class PolyUser {
     private String phone;
+    private String token;
     private String account;
     private boolean haveNoPayOrder;
     private String headImg;
     private String nikeName;
-    private List<UserObserver> watchers=new ArrayList<>();
+    private String cookie;
+    private List<UserObserver> watchers = new ArrayList<>();
 
     public String getPhone() {
         return phone;
@@ -25,6 +27,14 @@ public class PolyUser {
 
     public void setAccount(String account) {
         this.account = account;
+    }
+
+    public String getToken() {
+        return token;
+    }
+
+    public void setToken(String token) {
+        this.token = token;
     }
 
     public boolean isHaveNoPayOrder() {
@@ -49,6 +59,14 @@ public class PolyUser {
 
     public void setNikeName(String nikeName) {
         this.nikeName = nikeName;
+    }
+
+    public String getCookie() {
+        return cookie;
+    }
+
+    public void setCookie(String cookie) {
+        this.cookie = cookie;
     }
 
     public List<UserObserver> getWatchers() {
