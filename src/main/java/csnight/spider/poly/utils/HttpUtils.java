@@ -3,13 +3,15 @@ package csnight.spider.poly.utils;
 
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.serializer.SerializerFeature;
-import csnight.spider.poly.logic.UserService;
+import org.apache.http.Header;
 import org.apache.http.client.config.RequestConfig;
 import org.apache.http.client.methods.*;
+import org.apache.http.client.protocol.HttpClientContext;
 import org.apache.http.entity.StringEntity;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.apache.http.impl.conn.PoolingHttpClientConnectionManager;
+import org.apache.http.protocol.HttpContext;
 
 import javax.net.ssl.*;
 import java.io.IOException;
@@ -18,10 +20,13 @@ import java.io.StringWriter;
 import java.net.URI;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.List;
 
 public class HttpUtils {
     private static PoolingHttpClientConnectionManager cm;
     private final static String jsonModel = "{\"applicationSource\":\"plat_pc\",\"current\":1,\"size\":10,\"atgc\":\"atoken\",\"utgc\":\"utoken\",\"timestamp\":0,\"applicationCode\":\"plat_pc\"}";
+    private final static List<String> cookies = new ArrayList<>();
 
     static class IgnoreHostVerification implements HostnameVerifier {
         public boolean verify(String hostname, SSLSession session) {
@@ -97,7 +102,6 @@ public class HttpUtils {
         request.addHeader("Content-Type", "application/json");
         request.addHeader("Accept-Encoding", "gzip, deflate, br");
         request.addHeader("Connection", "keep-alive");
-        request.addHeader("httpType", "index");
         request.addHeader("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/90.0.4430.72 Safari/537.36");
         request.addHeader("Origin", "https://www.polyt.cn");
         request.addHeader("Referer", "https://www.polyt.cn");
@@ -106,16 +110,17 @@ public class HttpUtils {
         request.addHeader("sec-ch-ua-mobile", "?0");
         request.addHeader("Sec-Fetch-Dest", "empty");
         request.addHeader("Sec-Fetch-Mode", "cors");
-        request.addHeader("Sec-Fetch-Site", "same-site:");
+        request.addHeader("Sec-Fetch-Site", "same-site");
         request.setConfig(config);
         return request;
     }
 
-    public static String reqProcessor(String url, String method, JSONObject body) {
+    public static String reqProcessor(String url, String method, String httpType, JSONObject body) {
         String result = "";
         HttpRequestBase requestBase = HttpUtils.getHttpRequest(url, method);
         try {
-            requestBase.addHeader("Cookie", ReflectUtils.getBean(UserService.class).getUserSession());
+            requestBase.addHeader("Cookie", String.join(";", cookies.toArray(new String[]{})));
+            requestBase.addHeader("httpType", httpType);
             JSONObject model = JSONObject.parseObject(jsonModel);
             model.put("timestamp", System.currentTimeMillis());
             if (body != null) {
@@ -133,14 +138,22 @@ public class HttpUtils {
             e.printStackTrace();
             return result;
         }
+        HttpContext context = new HttpClientContext();
         try (CloseableHttpClient client = HttpUtils.getHttpClient(url);
-             CloseableHttpResponse response = client.execute(requestBase)) {
+             CloseableHttpResponse response = client.execute(requestBase, context)) {
             if (response.getStatusLine().getStatusCode() == 307) {
                 CloseableHttpResponse redResp = client.execute(requestBase);
                 byte[] respBytes = redResp.getEntity().getContent().readAllBytes();
                 result = new String(respBytes);
                 redResp.close();
             } else {
+                Header[] headers = response.getHeaders("Set-Cookie");
+                for (Header header : headers) {
+                    String[] part = header.getValue().split(";");
+                    if (part.length > 0) {
+                        cookies.add(part[0]);
+                    }
+                }
                 byte[] respBytes = response.getEntity().getContent().readAllBytes();
                 result = new String(respBytes);
             }
