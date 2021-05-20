@@ -5,7 +5,7 @@ target/
 !**/src/test/**/target/
 .mvn
 mvnw*
-
+logs/**
 ### STS ###
 .apt_generated
 .classpath
