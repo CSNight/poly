@@ -27,6 +27,10 @@ public class UserService {
         HttpUtils.reqProcessor("https://polyt.cn", "GET", "", new JSONObject());
     }
 
+    public PolyUser getPolyUser() {
+        return polyUser;
+    }
+
     public String LoginSession(UserDto dto) {
         JSONObject body = JSONObject.parseObject(JSONUtils.pojo2json(dto));
         body.put("token", polyUser.getToken());
@@ -36,6 +40,7 @@ public class UserService {
             JSONObject resultObj = JSONObject.parseObject(res);
             String result = resultObj.getString("msg").equals("OK") ? "success" : "failed";
             WebSocketServer.getInstance().broadcast("登录：" + result);
+            polyUser.setCookie(HttpUtils.cookies.values());
             return result;
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -44,14 +49,15 @@ public class UserService {
         return "failed";
     }
 
-    public String CheckUser() {
+    public PolyUser CheckUser() {
         String check = this.CheckLogin();
         WebSocketServer.getInstance().broadcast("登录检查：" + check);
         String check1 = this.GetLoginUserInfo();
         WebSocketServer.getInstance().broadcast("获取用户信息：" + check1);
-        List<UserObserver> observers = this.GetObserverList();
+        this.GetObserverList();
         WebSocketServer.getInstance().broadcast("获取观影人列表：" + check1);
-        return check.equals("success") && check1.equals("success") && observers.size() > 0 ? "success" : "failed";
+        polyUser.setCookie(HttpUtils.cookies.values());
+        return polyUser;
     }
 
     public String GetToken() {
@@ -104,11 +110,13 @@ public class UserService {
         try {
             JSONObject resultObj = JSONObject.parseObject(res);
             JSONObject data = resultObj.getJSONObject("data");
-            polyUser.setAccount(data.getString("account"));
-            polyUser.setHaveNoPayOrder(data.getBooleanValue("haveNoPayOrder"));
-            polyUser.setHeadImg(data.getString("headImg"));
-            polyUser.setNikeName(data.getString("nikeName"));
-            return "success";
+            if (resultObj.getBooleanValue("success") && data != null) {
+                polyUser.setAccount(data.getString("account"));
+                polyUser.setHaveNoPayOrder(data.getBooleanValue("haveNoPayOrder"));
+                polyUser.setHeadImg(data.getString("headImg"));
+                polyUser.setNikeName(data.getString("nikeName"));
+                return "success";
+            }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
@@ -120,11 +128,13 @@ public class UserService {
         try {
             JSONObject resultObj = JSONObject.parseObject(res);
             JSONArray data = resultObj.getJSONArray("data");
-            polyUser.getWatchers().clear();
-            if (data != null) {
-                data.forEach(e -> {
-                    polyUser.getWatchers().add(JSONUtils.json2pojo(e.toString(), UserObserver.class));
-                });
+            if (resultObj.getBooleanValue("success") && data != null) {
+                polyUser.getWatchers().clear();
+                if (data != null) {
+                    data.forEach(e -> {
+                        polyUser.getWatchers().add(JSONUtils.json2pojo(e.toString(), UserObserver.class));
+                    });
+                }
             }
         } catch (Exception ex) {
             ex.printStackTrace();
