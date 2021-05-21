@@ -1,6 +1,7 @@
 package csnight.spider.poly.model;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 
 public class PolyUser {
@@ -10,7 +11,7 @@ public class PolyUser {
     private boolean haveNoPayOrder;
     private String headImg;
     private String nikeName;
-    private String cookie;
+    private Collection<String> cookie;
     private List<UserObserver> watchers = new ArrayList<>();
 
     public String getPhone() {
@@ -61,11 +62,11 @@ public class PolyUser {
         this.nikeName = nikeName;
     }
 
-    public String getCookie() {
+    public Collection<String> getCookie() {
         return cookie;
     }
 
-    public void setCookie(String cookie) {
+    public void setCookie(Collection<String> cookie) {
         this.cookie = cookie;
     }
 
