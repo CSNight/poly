@@ -40,7 +40,8 @@
             <el-step title="开始抢票 3"></el-step>
         </el-steps>
         <div style="margin-top:20px;display: flex;align-items: center;justify-content: center">
-            <el-form v-if="active==0" size="mini" style="width: 500px" ref="loginForm" :rules="rules" :model="userForm">
+            <el-form v-show="active==0" size="mini" style="width: 500px" ref="loginForm" :rules="rulesUser"
+                     :model="userForm">
                 <el-form-item label="电话" prop="phone">
                     <el-input style="width: 100%" size="mini" v-model="userForm.phone" @input="verifyPhone"/>
                 </el-form-item>
@@ -60,34 +61,42 @@
                     </el-button>
                 </el-form-item>
             </el-form>
-            <el-form v-if="active==1" size="mini" style="width: 500px">
-                <el-form-item label="演出网页地址URL">
-                    <el-input size="mini" @change="loadShowInfo" style="width: 100%" v-model="showForm.url"/>
+            <el-form v-show="active==1" size="mini" style="width: 500px" ref="showForm" :model="showForm"
+                     :rules="rulesShow">
+                <el-form-item label="演出网页地址URL" prop="url">
+                    <el-input size="mini" @change="loadShowInfo" style="width: 100%" v-model="showForm.url"
+                              placeholder="例如 https://www.polyt.cn/show/465179627075854336/689/20057"/>
                 </el-form-item>
-                <el-form-item label="演出时间">
-                    <el-select size="mini" style="width: 100%" v-model="showForm.showTime">
-                        <el-option v-for="item in showList" :key="item.val" :value="item.label"/>
+                <el-form-item label="演出时间" prop="showTime" v-show="showList.length>0">
+                    <el-select size="mini" style="width: 100%" v-model="showForm.showTime" @change="selectShow">
+                        <el-option v-for="item in showList" :key="item.showId" :value="item.showId"
+                                   :label="item.venueName +'->'+item.showTime"/>
                     </el-select>
                 </el-form-item>
-                <el-form-item label="座位等级">
-                    <el-input-number style="width: 100%" size="mini" :min="1" :max="5" v-model="showForm.level"/>
+                <el-form-item label="座位等级" prop="level" v-show="seatGradeList.length>0">
+                    <el-select size="mini" style="width: 100%" v-model="showForm.level">
+                        <el-option v-for="item in seatGradeList" :key="item.priceId" :value="item.priceId"
+                                   :label="item.price+'元；剩余'+item.reservedCount"/>
+                    </el-select>
                 </el-form-item>
             </el-form>
-            <el-form v-if="active==2" size="mini" style="width: 500px">
+            <el-form v-show="active==2" size="mini" style="width: 500px">
                 <el-form-item label="取票人姓名">
-                    <el-input size="mini" style="width: 100%" v-model="showForm.getTickName"></el-input>
+                    <el-input size="mini" style="width: 100%" v-model="orderForm.getTickName"></el-input>
                 </el-form-item>
                 <el-form-item label="观影人">
-                    <el-select size="mini" style="width: 100%" v-model="showForm.showWatcher">
-                        <el-option v-for="item in showUserList" :key="item.id" :value="item.label"/>
+                    <el-select size="mini" style="width: 100%" v-model="orderForm.showWatcher">
+                        <el-option v-for="item in showUserList" :key="item.id" :value="item.name"/>
                     </el-select>
                 </el-form-item>
                 <el-form-item>
                     <el-button type="primary" size="mini" @click="startClaw">开始</el-button>
+                    <el-button type="warning" size="mini">停止</el-button>
                 </el-form-item>
             </el-form>
         </div>
         <div style="width:100%;display: flex;justify-content: center">
+            <el-button @click="prev" size="mini" v-if="active>1">上一步</el-button>
             <el-button @click="next" size="mini" v-if="active<2">下一步</el-button>
         </div>
         <el-divider content-position="center">抢票日志</el-divider>
@@ -107,21 +116,30 @@
             },
             showForm: {
                 url: "",
-                level: 1,
-                showTime: '',
-                getTickName: "",
-                showWatcher: "",
+                level: null,
+                showTime: null,
             },
-            rules: {
+            orderForm: {
+                getTickName: null,
+                showWatcher: null,
+            },
+            rulesUser: {
                 phone: [{required: true, message: '请输入电话号码', trigger: 'blur'}],
                 phoneCode: [{required: true, message: '请输入验证码', trigger: 'blur'}],
+            },
+            rulesShow: {
+                url: [{required: true, message: '请输入演出网址', trigger: 'blur'}],
+                level: [{required: true, message: '请选择座位等级', trigger: 'change'}],
+                showTime: [{required: true, message: '请选择演出时间', trigger: 'change'}],
             },
             active: 0,
             countDown: 60,
             log: '',
             userModel: null,
+            projectInfo: null,
             showList: [],
             showUserList: [],
+            seatGradeList: [],
             ncModel: null,
             showCodeInput: false,
             checkIf: false,
@@ -149,8 +167,17 @@
                 if (this.active === 0) {
                     this.checkUser()
                 } else if (this.active === 1) {
-
+                    this.$refs['showForm'].validate((valid) => {
+                        if (valid) {
+                            this.nextStep();
+                        }
+                    })
+                } else {
+                    this.nextStep();
                 }
+            },
+            prev() {
+                this.active--;
             },
             nextStep() {
                 if (this.active++ > 2) this.active = 0;
@@ -224,7 +251,22 @@
                 });
             },
             loadShowInfo() {
-
+                if (this.showForm.url && this.showForm.url !== "") {
+                    this.service.get("project/projectInfo", {params: {url: this.showForm.url}}).then((resp) => {
+                        if (resp.data.status === 200 && resp.data.code === 'OK') {
+                            this.projectInfo = resp.data.message;
+                            this.showList = this.projectInfo.shows;
+                        }
+                    })
+                }
+            },
+            selectShow(e) {
+                this.seatGradeList = [];
+                for (let i = 0; i < this.showList.length; i++) {
+                    if (this.showList[i].showId === e) {
+                        this.seatGradeList = this.showList[i].ticketPriceList
+                    }
+                }
             },
             startClaw() {
                 console.log(this.cookie, this.url)
