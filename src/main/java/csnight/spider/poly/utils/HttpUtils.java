@@ -20,13 +20,13 @@ import java.io.StringWriter;
 import java.net.URI;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
 
 public class HttpUtils {
     private static PoolingHttpClientConnectionManager cm;
     private final static String jsonModel = "{\"applicationSource\":\"plat_pc\",\"current\":1,\"size\":10,\"atgc\":\"atoken\",\"utgc\":\"utoken\",\"timestamp\":0,\"applicationCode\":\"plat_pc\"}";
-    private final static List<String> cookies = new ArrayList<>();
+    public final static Map<String, String> cookies = new HashMap<>();
 
     static class IgnoreHostVerification implements HostnameVerifier {
         public boolean verify(String hostname, SSLSession session) {
@@ -119,7 +119,7 @@ public class HttpUtils {
         String result = "";
         HttpRequestBase requestBase = HttpUtils.getHttpRequest(url, method);
         try {
-            requestBase.addHeader("Cookie", String.join(";", cookies.toArray(new String[]{})));
+            requestBase.addHeader("Cookie", String.join(";", cookies.values().toArray(new String[]{})));
             requestBase.addHeader("httpType", httpType);
             JSONObject model = JSONObject.parseObject(jsonModel);
             model.put("timestamp", System.currentTimeMillis());
@@ -151,7 +151,7 @@ public class HttpUtils {
                 for (Header header : headers) {
                     String[] part = header.getValue().split(";");
                     if (part.length > 0) {
-                        cookies.add(part[0]);
+                        cookies.put(part[0].split("=")[0], part[0]);
                     }
                 }
                 byte[] respBytes = response.getEntity().getContent().readAllBytes();
