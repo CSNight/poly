@@ -1,6 +1,6 @@
 package csnight.spider.poly.model;
 
-public class TickPriceList {
+public class TickPrice {
     private double totalPrices;
     //折扣
     private double discount;
@@ -14,6 +14,9 @@ public class TickPriceList {
     private long endTime;
     private int priceId;
     private long applyTime;
+    private String priceGrade;
+    private String priceGradeShow;
+    private String ticketPriceColor;
 
     public double getTotalPrices() {
         return totalPrices;
@@ -101,5 +104,29 @@ public class TickPriceList {
 
     public void setApplyTime(long applyTime) {
         this.applyTime = applyTime;
+    }
+
+    public String getPriceGrade() {
+        return priceGrade;
+    }
+
+    public void setPriceGrade(String priceGrade) {
+        this.priceGrade = priceGrade;
+    }
+
+    public String getPriceGradeShow() {
+        return priceGradeShow;
+    }
+
+    public void setPriceGradeShow(String priceGradeShow) {
+        this.priceGradeShow = priceGradeShow;
+    }
+
+    public String getTicketPriceColor() {
+        return ticketPriceColor;
+    }
+
+    public void setTicketPriceColor(String ticketPriceColor) {
+        this.ticketPriceColor = ticketPriceColor;
     }
 }
