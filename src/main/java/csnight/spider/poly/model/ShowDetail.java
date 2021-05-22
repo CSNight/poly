@@ -12,13 +12,17 @@ public class ShowDetail {
     private String saleBeginTimeStr;
     private String theaterId;
     private String sectionId;
+    private String categoryId;
+    //section name
+    private String cname;
+    private String sectionCode;
     private long count;
     private String showTime;
     private long saleBeginTime;
     private long saleEngTime;
     private String checkMode;
     private String status;
-    private List<TickPriceList> ticketPriceList = new ArrayList<>();
+    private List<TickPrice> ticketPriceList = new ArrayList<>();
 
     public int getSectionNum() {
         return sectionNum;
@@ -84,6 +88,30 @@ public class ShowDetail {
         this.sectionId = sectionId;
     }
 
+    public String getCategoryId() {
+        return categoryId;
+    }
+
+    public void setCategoryId(String categoryId) {
+        this.categoryId = categoryId;
+    }
+
+    public String getCname() {
+        return cname;
+    }
+
+    public void setCname(String cname) {
+        this.cname = cname;
+    }
+
+    public String getSectionCode() {
+        return sectionCode;
+    }
+
+    public void setSectionCode(String sectionCode) {
+        this.sectionCode = sectionCode;
+    }
+
     public long getCount() {
         return count;
     }
@@ -132,11 +160,11 @@ public class ShowDetail {
         this.status = status;
     }
 
-    public List<TickPriceList> getTicketPriceList() {
+    public List<TickPrice> getTicketPriceList() {
         return ticketPriceList;
     }
 
-    public void setTicketPriceList(List<TickPriceList> ticketPriceList) {
+    public void setTicketPriceList(List<TickPrice> ticketPriceList) {
         this.ticketPriceList = ticketPriceList;
     }
 }
