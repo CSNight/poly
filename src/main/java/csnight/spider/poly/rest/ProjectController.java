@@ -6,10 +6,7 @@ import csnight.spider.poly.utils.RespTemplate;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestMethod;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
 
@@ -25,5 +22,19 @@ public class ProjectController {
     @RequestMapping(value = "/projectInfo", method = RequestMethod.GET)
     public RespTemplate GetProjectInfo(@RequestParam("url") String url) {
         return new RespTemplate(HttpStatus.OK, showService.GetProjectDetail(url));
+    }
+
+    @LogAsync
+    @ApiOperation(value = "获取场次信息")
+    @RequestMapping(value = "/showInfo/{jid}/{pid}", method = RequestMethod.GET)
+    public RespTemplate GetShowInfo(@PathVariable String jid, @PathVariable String pid) {
+        return new RespTemplate(HttpStatus.OK, showService.GetShowDetail(jid, pid));
+    }
+
+    @LogAsync
+    @ApiOperation(value = "获取区域信息")
+    @RequestMapping(value = "/sectionInfo/{jid}/{showId}/{sectionId}", method = RequestMethod.GET)
+    public RespTemplate GetShowInfo(@PathVariable String jid, @PathVariable int showId, @PathVariable String sectionId) {
+        return new RespTemplate(HttpStatus.OK, showService.GetSeatList(jid, showId, sectionId));
     }
 }
