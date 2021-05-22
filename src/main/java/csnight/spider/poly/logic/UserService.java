@@ -49,6 +49,17 @@ public class UserService {
         return "failed";
     }
 
+    public String LoadUserFront(String cookies) {
+        if (cookies == null || cookies.equals("")) {
+            return "failed";
+        }
+        String[] cookie = cookies.split(";");
+        for (String cok : cookie) {
+            HttpUtils.cookies.put(cok.split("=")[0], cok);
+        }
+        return "success";
+    }
+
     public PolyUser CheckUser() {
         String check = this.CheckLogin();
         WebSocketServer.getInstance().broadcast("登录检查：" + check);
