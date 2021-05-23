@@ -129,4 +129,12 @@ public class SeatInfo {
     public void setY(int y) {
         this.y = y;
     }
+
+    public boolean isLock() {
+        return lock;
+    }
+
+    public void setLock(boolean lock) {
+        this.lock = lock;
+    }
 }
