@@ -27,7 +27,7 @@
             <el-step title="开始抢票 3"></el-step>
         </el-steps>
         <div style="margin-top:20px;display: flex;align-items: center;justify-content: center">
-            <el-form v-show="active==0" size="mini" style="width: 500px" ref="loginForm" :rules="rulesUser"
+            <el-form v-show="active===0" size="mini" style="width: 500px" ref="loginForm" :rules="rulesUser"
                      :model="userForm">
                 <el-form-item label="电话" prop="phone">
                     <el-input style="width: 100%" size="mini" v-model="userForm.phone" @input="verifyPhone"/>
@@ -37,7 +37,7 @@
                         <el-button v-if="!showCountDown" style="padding-right:10px" slot="suffix" @click="getPhoneCheck"
                                    type="text">获取验证码
                         </el-button>
-                        <div v-if="showCountDown" style="padding-right:10px" slot="suffix">{{countDown}}秒后重新获取</div>
+                        <div v-if="showCountDown" style="padding-right:10px" slot="suffix">{{ countDown }}秒后重新获取</div>
                     </el-input>
                 </el-form-item>
                 <el-form-item style="height: 40px">
@@ -48,40 +48,57 @@
                     </el-button>
                 </el-form-item>
             </el-form>
-            <el-form v-show="active==1" size="mini" style="width: 500px" ref="showForm" :model="showForm"
+            <el-form v-show="active===1" size="mini" style="width: 500px" ref="showForm" :model="showForm"
                      :rules="rulesShow">
                 <el-form-item label="演出网页地址URL" prop="url">
                     <el-input size="mini" @change="loadShowInfo" style="width: 100%" v-model="showForm.url"
-                              placeholder="例如 https://www.polyt.cn/show/465179627075854336/689/20057"/>
+                              placeholder="例如 https://www.polyt.cn/show/465179627075854336/689/20057"></el-input>
                 </el-form-item>
                 <el-form-item label="演出时间" prop="showTime" v-show="showList.length>0">
                     <el-select size="mini" style="width: 100%" v-model="showForm.showTime" @change="selectShow">
                         <el-option v-for="item in showList" :key="item.showId" :value="item.showId"
-                                   :label="item.venueName +'->'+item.showTime"/>
-                    </el-select>
-                </el-form-item>
-                <el-form-item label="座位等级" prop="level" v-show="seatGradeList.length>0">
-                    <el-select size="mini" style="width: 100%" v-model="showForm.level">
-                        <el-option v-for="item in seatGradeList" :key="item.priceId" :value="item.priceId">
-                            <span :style="`background:${item.ticketPriceColor};color:#fff`">{{ `等级${item.priceGradeShow} ${item.price}元 剩余${item.reservedCount}张` }}</span>
-                        </el-option>
+                                   :label="`演出时间：${item.showTime} 开售时间：${item.saleBeginTimeStr}`"></el-option>
                     </el-select>
                 </el-form-item>
             </el-form>
-            <el-form v-show="active==2" size="mini" style="width: 500px">
-                <el-form-item label="取票人姓名">
-                    <el-input size="mini" style="width: 100%" v-model="orderForm.getTickName"></el-input>
-                </el-form-item>
-                <el-form-item label="观影人">
-                    <el-select size="mini" style="width: 100%" v-model="orderForm.showWatcher">
-                        <el-option v-for="item in showUserList" :key="item.id" :value="item.name"/>
-                    </el-select>
-                </el-form-item>
-                <el-form-item>
-                    <el-button type="primary" size="mini" @click="startClaw">开始</el-button>
-                    <el-button type="warning" size="mini">停止</el-button>
-                </el-form-item>
-            </el-form>
+            <div v-show="active===2" size="mini" style="width: 500px">
+                <el-form inline label-width="70px" style="width: 100%">
+                    <div v-for="(order,i) in orderList">
+                        <el-form-item :label="`观影人${i+1}`">
+                            <el-select size="mini" v-model="order.showWatcher" style="width: 90px">
+                                <el-option v-for="item in showUserList" :key="item.id" :value="item.id"
+                                           :label="item.name"></el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item label="座位席别">
+                            <el-select size="mini" v-model="order.level">
+                                <el-option v-for="item in seatGradeList" :key="item.priceId" :value="item.priceId"
+                                           :label="`${item.price}元 剩余${item.reservedCount}张`">
+                                        <span :style="`background:${item.ticketPriceColor};color:#fff`">
+                                            {{ `等级${item.priceGradeShow} ${item.price}元 剩余${item.reservedCount}张` }}
+                                        </span>
+                                </el-option>
+                            </el-select>
+                        </el-form-item>
+                        <el-form-item v-if="i===0&&showUserList>1">
+                            <el-button size="mini" icon="el-icon-plus" @click="addNewOrder" type="primary"
+                                       :disabled="orderList.length>1"></el-button>
+                        </el-form-item>
+                        <el-form-item v-if="i>0">
+                            <el-button size="mini" type="danger" icon="el-icon-delete" @click="removeOrder"></el-button>
+                        </el-form-item>
+                    </div>
+                </el-form>
+                <el-form inline label-width="90px" style="width: 100%">
+                    <el-form-item label="取票人姓名">
+                        <el-input size="mini" style="width: 100%" v-model="orderForm.getTickName"></el-input>
+                    </el-form-item>
+                    <el-form-item>
+                        <el-button type="primary" size="mini" @click="startClaw">开始</el-button>
+                        <el-button type="danger" size="mini">停止</el-button>
+                    </el-form-item>
+                </el-form>
+            </div>
         </div>
         <div style="width:100%;display: flex;justify-content: center">
             <el-button @click="prev" size="mini" v-if="active>1">上一步</el-button>
@@ -104,9 +121,9 @@
             },
             showForm: {
                 url: "",
-                level: null,
                 showTime: null,
             },
+            orderList: [{showWatcher: "", level: ""}],
             orderForm: {
                 getTickName: null,
                 showWatcher: null,
@@ -117,7 +134,6 @@
             },
             rulesShow: {
                 url: [{required: true, message: '请输入演出网址', trigger: 'blur'}],
-                level: [{required: true, message: '请选择座位等级', trigger: 'change'}],
                 showTime: [{required: true, message: '请选择演出时间', trigger: 'change'}],
             },
             active: 0,
@@ -140,14 +156,12 @@
                 timeout: 50000, // request timeout
             })
         },
-        mounted() {
-            this.$nextTick(() => {
-                this.init();
-                this.$dws.on("msg", (e) => {
-                    this.log += `${new Date().toLocaleString()} ${e} \n`;
-                }, "123");
-                this.$dws.connect("ws://127.0.0.1:13245/websocket_stream");
-            })
+        created() {
+            this.init();
+            this.$dws.on("msg", (e) => {
+                this.log += `${new Date().toLocaleString()} ${e} \n`;
+            }, "123");
+            this.$dws.connect("ws://127.0.0.1:13245/websocket_stream");
         },
         methods: {
             init() {
@@ -177,6 +191,7 @@
             },
             prev() {
                 this.active--;
+                this.orderList = [{showWatcher: "", level: ""}];
             },
             nextStep() {
                 if (this.active++ > 2) this.active = 0;
@@ -264,6 +279,12 @@
                     }
                 }
             },
+            addNewOrder() {
+                this.orderList.push({showWatcher: "", level: ""})
+            },
+            removeOrder() {
+                this.orderList.pop();
+            },
             startClaw() {
                 console.log(this.cookie, this.url)
             },
@@ -319,6 +340,10 @@
                     });
                 })
             }
+        },
+        beforeDestroy() {
+            this.$dws.un("msg", "123")
+            this.$dws.close();
         }
     });
 </script>
