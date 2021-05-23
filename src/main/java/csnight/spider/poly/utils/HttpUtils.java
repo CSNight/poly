@@ -76,9 +76,9 @@ public class HttpUtils {
 
     public static HttpRequestBase getHttpRequest(String url, String method) {
         RequestConfig config = RequestConfig.custom()
-                .setConnectTimeout(10 * 1000)
-                .setSocketTimeout(10 * 1000)
-                .setConnectionRequestTimeout(10 * 1000)
+                .setConnectTimeout(20 * 1000)
+                .setSocketTimeout(20 * 1000)
+                .setConnectionRequestTimeout(20 * 1000)
                 .setRelativeRedirectsAllowed(true)
                 .setRedirectsEnabled(true)
                 .build();
