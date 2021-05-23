@@ -3,6 +3,7 @@ package csnight.spider.poly.logic;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import csnight.spider.poly.model.Project;
+import csnight.spider.poly.model.SeatInfo;
 import csnight.spider.poly.model.ShowDetail;
 import csnight.spider.poly.model.TickPrice;
 import csnight.spider.poly.utils.HttpUtils;
@@ -10,6 +11,7 @@ import csnight.spider.poly.utils.JSONUtils;
 import csnight.spider.poly.websocket.WebSocketServer;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -63,6 +65,7 @@ public class ShowService {
                 JSONArray shows = data.getJSONArray("platShowInfoDetailVOList");
                 for (Object show : shows) {
                     ShowDetail detail = JSONUtils.json2pojo(show.toString(), ShowDetail.class);
+                    detail.setProjectId(project.getProjectId());
                     GetShowSections(detail);
                     project.getShows().add(detail);
                 }
@@ -107,7 +110,8 @@ public class ShowService {
         }
     }
 
-    public String GetSeatList(String jid, int showId, String sectionId) {
+    public List<SeatInfo> GetSeatList(String jid, int showId, String sectionId) {
+        List<SeatInfo> seatInfos = new ArrayList<>();
         JSONObject body = new JSONObject();
         body.put("projectId", jid);
         body.put("showId", showId);
@@ -118,6 +122,14 @@ public class ShowService {
             String result = resultObj.getBooleanValue("success") ? "success" : "failed";
             JSONObject data = resultObj.getJSONObject("data");
             if (result.equals("success") && data != null) {
+                JSONArray shows = data.getJSONArray("seatList");
+                for (Object show : shows) {
+                    SeatInfo seat = JSONUtils.json2pojo(show.toString(), SeatInfo.class);
+                    if (seat.getSeatStatus() == 0) {
+                        seatInfos.add(seat);
+                    }
+                }
+                return seatInfos;
             }
         } catch (Exception ex) {
             ex.printStackTrace();

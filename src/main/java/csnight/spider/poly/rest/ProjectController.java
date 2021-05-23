@@ -32,7 +32,7 @@ public class ProjectController {
     }
 
     @LogAsync
-    @ApiOperation(value = "获取区域信息")
+    @ApiOperation(value = "获取座位列表")
     @RequestMapping(value = "/sectionInfo/{jid}/{showId}/{sectionId}", method = RequestMethod.GET)
     public RespTemplate GetShowInfo(@PathVariable String jid, @PathVariable int showId, @PathVariable String sectionId) {
         return new RespTemplate(HttpStatus.OK, showService.GetSeatList(jid, showId, sectionId));
