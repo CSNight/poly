@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class ShowDetail {
+    private String projectId;
     private int sectionNum;
     private int showId;
     private int venueId;
@@ -23,6 +24,14 @@ public class ShowDetail {
     private String checkMode;
     private String status;
     private List<TickPrice> ticketPriceList = new ArrayList<>();
+
+    public String getProjectId() {
+        return projectId;
+    }
+
+    public void setProjectId(String projectId) {
+        this.projectId = projectId;
+    }
 
     public int getSectionNum() {
         return sectionNum;
