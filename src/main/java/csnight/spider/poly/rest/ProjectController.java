@@ -2,6 +2,7 @@ package csnight.spider.poly.rest;
 
 import csnight.spider.poly.aop.LogAsync;
 import csnight.spider.poly.logic.ShowService;
+import csnight.spider.poly.rest.dto.OrderDto;
 import csnight.spider.poly.utils.RespTemplate;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -9,6 +10,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 import javax.annotation.Resource;
+import javax.validation.Valid;
 
 @Api(tags = "演出管理API")
 @RestController
@@ -36,5 +38,19 @@ public class ProjectController {
     @RequestMapping(value = "/sectionInfo/{jid}/{showId}/{sectionId}", method = RequestMethod.GET)
     public RespTemplate GetShowInfo(@PathVariable String jid, @PathVariable int showId, @PathVariable String sectionId) {
         return new RespTemplate(HttpStatus.OK, showService.GetSeatList(jid, showId, sectionId));
+    }
+
+    @LogAsync
+    @ApiOperation(value = "开始抢票")
+    @RequestMapping(value = "/startClaw", method = RequestMethod.POST)
+    public RespTemplate StartClaw(@Valid @RequestBody OrderDto dto) {
+        return new RespTemplate(HttpStatus.OK, showService.StartClaw(dto));
+    }
+
+    @LogAsync
+    @ApiOperation(value = "停止抢票")
+    @RequestMapping(value = "/stopClaw", method = RequestMethod.PUT)
+    public RespTemplate StopClaw() {
+        return new RespTemplate(HttpStatus.OK, showService.StopClaw());
     }
 }
