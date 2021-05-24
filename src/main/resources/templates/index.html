@@ -44,7 +44,7 @@
                     <div id="nc" style="width: 100%" v-if="checkIf"></div>
                 </el-form-item>
                 <el-form-item>
-                    <el-button size="mini" v-if="showLogin&&checkIf" v-loading="loginLoading" @click="login">登录
+                    <el-button size="mini" v-if="showLogin&&checkIf" :loading="loginLoading" @click="login">登录
                     </el-button>
                 </el-form-item>
             </el-form>
@@ -54,48 +54,48 @@
                     <el-input size="mini" @change="loadShowInfo" style="width: 100%" v-model="showForm.url"
                               placeholder="例如 https://www.polyt.cn/show/465179627075854336/689/20057"></el-input>
                 </el-form-item>
-                <el-form-item label="演出时间" prop="showTime" v-show="showList.length>0">
-                    <el-select size="mini" style="width: 100%" v-model="showForm.showTime" @change="selectShow">
+                <el-form-item label="演出时间" prop="showId" v-show="showList.length>0">
+                    <el-select size="mini" style="width: 100%" v-model="showForm.showId" @change="selectShow">
                         <el-option v-for="item in showList" :key="item.showId" :value="item.showId"
                                    :label="`演出时间：${item.showTime} 开售时间：${item.saleBeginTimeStr}`"></el-option>
                     </el-select>
                 </el-form-item>
             </el-form>
             <div v-show="active===2" size="mini" style="width: 500px">
-                <el-form inline label-width="70px" style="width: 100%">
-                    <div v-for="(order,i) in orderList">
-                        <el-form-item :label="`观影人${i+1}`">
-                            <el-select size="mini" v-model="order.showWatcher" style="width: 90px">
-                                <el-option v-for="item in showUserList" :key="item.id" :value="item.id"
-                                           :label="item.name"></el-option>
-                            </el-select>
-                        </el-form-item>
-                        <el-form-item label="座位席别">
-                            <el-select size="mini" v-model="order.level">
-                                <el-option v-for="item in seatGradeList" :key="item.priceId" :value="item.priceId"
-                                           :label="`${item.price}元 剩余${item.reservedCount}张`">
+                <el-form inline label-width="90px" style="width: 100%" ref="orderForm" :model="orderForm"
+                         :rules="rulesOrder">
+                    <el-form-item label="观影人" prop="showWatcher">
+                        <el-select size="mini" v-model="orderForm.showWatcher" style="width: 120px">
+                            <el-option v-for="item in showUserList" :key="item.id" :value="item.id"
+                                       :label="item.name"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="座位席别" prop="level">
+                        <el-select size="mini" v-model="orderForm.level">
+                            <el-option v-for="item in seatGradeList" :key="item.priceId" :value="item.priceId"
+                                       :label="`${item.price}元 剩余${item.reservedCount}张`">
                                         <span :style="`background:${item.ticketPriceColor};color:#fff`">
                                             {{ `等级${item.priceGradeShow} ${item.price}元 剩余${item.reservedCount}张` }}
                                         </span>
-                                </el-option>
-                            </el-select>
-                        </el-form-item>
-                        <el-form-item v-if="i===0&&showUserList>1">
-                            <el-button size="mini" icon="el-icon-plus" @click="addNewOrder" type="primary"
-                                       :disabled="orderList.length>1"></el-button>
-                        </el-form-item>
-                        <el-form-item v-if="i>0">
-                            <el-button size="mini" type="danger" icon="el-icon-delete" @click="removeOrder"></el-button>
-                        </el-form-item>
-                    </div>
-                </el-form>
-                <el-form inline label-width="90px" style="width: 100%">
-                    <el-form-item label="取票人姓名">
+                            </el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="支付方式" prop="payWay">
+                        <el-select size="mini" v-model="orderForm.payWay" style="width: 120px">
+                            <el-option v-for="t in payList" :key="t.v" :value="t.v" :label="t.l"></el-option>
+                        </el-select>
+                    </el-form-item>
+                    <el-form-item label="取票人" prop="getTickName">
                         <el-input size="mini" style="width: 100%" v-model="orderForm.getTickName"></el-input>
                     </el-form-item>
                     <el-form-item>
-                        <el-button type="primary" size="mini" @click="startClaw">开始</el-button>
-                        <el-button type="danger" size="mini">停止</el-button>
+                        <el-checkbox v-model="orderForm.autoDownGrade">自动降低座位等级重试</el-checkbox>
+                    </el-form-item>
+                </el-form>
+                <el-form inline label-width="90px" style="width: 100%">
+                    <el-form-item>
+                        <el-button type="primary" size="mini" :disabled="clawStatus" @click="startClaw">开始</el-button>
+                        <el-button type="danger" size="mini" :loading="clawLoading" @click="stopClaw">停止</el-button>
                     </el-form-item>
                 </el-form>
             </div>
@@ -121,12 +121,14 @@
             },
             showForm: {
                 url: "",
-                showTime: null,
+                showId: null,
             },
-            orderList: [{showWatcher: "", level: ""}],
             orderForm: {
                 getTickName: null,
                 showWatcher: null,
+                level: null,
+                autoDownGrade: true,
+                payWay: "06",
             },
             rulesUser: {
                 phone: [{required: true, message: '请输入电话号码', trigger: 'blur'}],
@@ -134,8 +136,15 @@
             },
             rulesShow: {
                 url: [{required: true, message: '请输入演出网址', trigger: 'blur'}],
-                showTime: [{required: true, message: '请选择演出时间', trigger: 'change'}],
+                showId: [{required: true, message: '请选择演出时间', trigger: 'change'}],
             },
+            rulesOrder: {
+                getTickName: [{required: true, message: '', trigger: 'change'}],
+                showWatcher: [{required: true, message: '请选择演出时间', trigger: 'change'}],
+                level: [{required: true, message: '请选择演出时间', trigger: 'change'}],
+                payWay: [{required: true, message: '请选择支付方式', trigger: 'change'}],
+            },
+            payList: [{l: "微信支付", v: "06"}, {l: "支付宝支付", v: "05"}],
             active: 0,
             countDown: 60,
             log: '',
@@ -150,6 +159,8 @@
             showCountDown: false,
             showLogin: true,
             loginLoading: false,
+            clawLoading: false,
+            clawStatus: false,
             service: axios.create({
                 baseURL: "http://127.0.0.1:8020/", // url = base url + request url
                 withCredentials: true, // send cookies when cross-domain requests
@@ -191,7 +202,6 @@
             },
             prev() {
                 this.active--;
-                this.orderList = [{showWatcher: "", level: ""}];
             },
             nextStep() {
                 if (this.active++ > 2) this.active = 0;
@@ -279,20 +289,33 @@
                     }
                 }
             },
-            addNewOrder() {
-                this.orderList.push({showWatcher: "", level: ""})
-            },
-            removeOrder() {
-                this.orderList.pop();
-            },
             startClaw() {
-                console.log(this.cookie, this.url)
+                this.$refs['orderForm'].validate((valid) => {
+                    if (valid) {
+                        this.orderForm.showId = this.showForm.showId;
+                        this.orderForm.projectInfo = JSON.stringify(this.projectInfo);
+                        this.service.post("project/startClaw", this.orderForm).then((resp) => {
+                            this.clawStatus = resp.data.status === 200 && resp.data.code === 'OK';
+                        })
+                    }
+                })
+            },
+            stopClaw() {
+                this.clawLoading = true;
+                this.service.put("project/stopClaw").then((resp) => {
+                    if (resp.data.status === 200 && resp.data.code === 'OK') {
+                        this.clawLoading = false;
+                        this.clawStatus = false;
+                    }
+                }).catch(() => {
+                    this.clawLoading = false;
+                })
             },
             resetShowForm() {
                 this.showList = [];
                 this.seatGradeList = [];
                 this.showForm.level = null;
-                this.showForm.showTime = null
+                this.showForm.showId = null
             },
             verifyPhone(e) {
                 let list = []
