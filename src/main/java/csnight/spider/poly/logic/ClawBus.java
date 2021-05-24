@@ -1,7 +1,9 @@
 package csnight.spider.poly.logic;
 
+import csnight.spider.poly.model.OrderInfo;
 import csnight.spider.poly.model.SeatInfo;
 import csnight.spider.poly.model.ShowDetail;
+import csnight.spider.poly.rest.dto.OrderDto;
 import csnight.spider.poly.utils.ReflectUtils;
 import csnight.spider.poly.websocket.WebSocketServer;
 import org.slf4j.Logger;
@@ -10,10 +12,8 @@ import org.slf4j.LoggerFactory;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -25,8 +25,11 @@ public class ClawBus {
     private Map<String, List<SeatInfo>> seatWithClass = new ConcurrentHashMap<>();
     private AtomicLong timeSeatLock = new AtomicLong(0);
     private ReentrantLock lock = new ReentrantLock();
-    private final ScheduledExecutorService seatRefreshPool = Executors.newScheduledThreadPool(2);
-    private final ScheduledExecutorService clawPool = Executors.newScheduledThreadPool(2);
+    private ScheduledExecutorService seatRefreshPool;
+    private LinkedBlockingQueue<Runnable> workQueue = new LinkedBlockingQueue<>(10);
+    private ThreadPoolExecutor clawPool;
+    private final int RETRY_TIME = 2;
+    private AtomicBoolean stopSign = new AtomicBoolean(false);
 
     public static ClawBus getIns() {
         if (ourInstance == null) {
@@ -46,6 +49,7 @@ public class ClawBus {
 
     private ClawBus() {
         service = ReflectUtils.getBean(ShowService.class);
+
     }
 
     private void GetClassSeat() {
@@ -61,7 +65,7 @@ public class ClawBus {
         }
         List<SeatInfo> seats = service.GetSeatList(showDetail.getProjectId(), showDetail.getShowId(), showDetail.getSectionId());
         if (timeSeatLock.getAcquire() > st) {
-            _log.warn("old request block");
+            _log.info("old request block " + st + "->" + timeSeatLock.getAcquire());
             return;
         }
         if (seats == null) {
@@ -70,6 +74,7 @@ public class ClawBus {
         }
         if (seats.size() == 0) {
             WebSocketServer.getInstance().broadcast("票暂时售罄，继续刷新中... \n如需终止请点击停止按钮");
+            return;
         }
         seatWithClass.clear();
         for (SeatInfo seat : seats) {
@@ -83,8 +88,50 @@ public class ClawBus {
         }
     }
 
-    public void StartClaw() {
+    private void GenerateOrder(OrderDto dto) {
+        OrderInfo order = new OrderInfo();
+        order.setProjectId(showDetail.getProjectId());
+        order.setShowId(showDetail.getShowId());
+        order.setShowTime(showDetail.getShowTime());
+        order.setGetTicketName(dto.getGetTickName());
+        order.setWatchers(dto.getShowWatcher());
+        order.setPayWay(dto.getPayWay());
+        Future<String> stringCompleteFuture = clawPool.submit(() -> {
+            return "";
+        });
+    }
+
+    public void StartClaw(OrderDto dto) {
+        seatRefreshPool = Executors.newScheduledThreadPool(2);
+        clawPool = new ThreadPoolExecutor(5, 5, 0L, TimeUnit.MILLISECONDS, workQueue);
         seatRefreshPool.scheduleAtFixedRate(this::GetClassSeat, 0, 5000, TimeUnit.MILLISECONDS);
-        seatRefreshPool.scheduleAtFixedRate(this::GetClassSeat, 500, 5000, TimeUnit.MILLISECONDS);
+        seatRefreshPool.scheduleAtFixedRate(this::GetClassSeat, 1000, 3000, TimeUnit.MILLISECONDS);
+        WebSocketServer.getInstance().broadcast("抢票启动成功");
+    }
+
+    public void StopClaw() {
+        if (stopSign.get()) {
+            WebSocketServer.getInstance().broadcast("等待停止中，请勿重复点击");
+            return;
+        }
+        stopSign.set(true);
+        seatRefreshPool.shutdown();
+        clawPool.shutdown();
+        WebSocketServer.getInstance().broadcast("抢票停止中...");
+        while (true) {
+            if (seatRefreshPool.isShutdown() && clawPool.isShutdown()) {
+                WebSocketServer.getInstance().broadcast("抢票停止");
+                break;
+            }
+            try {
+                Thread.sleep(2000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+        seatRefreshPool = null;
+        clawPool = null;
+        workQueue.clear();
+        stopSign.set(false);
     }
 }
