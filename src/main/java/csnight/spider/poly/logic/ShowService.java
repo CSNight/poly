@@ -2,10 +2,8 @@ package csnight.spider.poly.logic;
 
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
-import csnight.spider.poly.model.Project;
-import csnight.spider.poly.model.SeatInfo;
-import csnight.spider.poly.model.ShowDetail;
-import csnight.spider.poly.model.TickPrice;
+import csnight.spider.poly.model.*;
+import csnight.spider.poly.rest.dto.OrderDto;
 import csnight.spider.poly.utils.HttpUtils;
 import csnight.spider.poly.utils.JSONUtils;
 import csnight.spider.poly.websocket.WebSocketServer;
@@ -20,6 +18,10 @@ public class ShowService {
     private final String PROJECT_DETAIL = "https://platformpcgateway.polyt.cn/api/1.0/ticket/getProjectDetail";
     private final String SHOW_SECTION_INFO = "https://platformpcgateway.polyt.cn/api/1.0/seat/getShowSectionInfo";
     private final String SEAT_INFO = "https://platformpcgateway.polyt.cn/api/1.0/seat/getSeatInfo";
+    private final String COMMIT_ON_SEAT = "https://platformpcgateway.polyt.cn/api/1.0/platformOrder/commitOrderOnSeat";
+    private final String CREATE_JUMP = "https://platformpcgateway.polyt.cn/api/1.0/platformOrder/createQuickOrderJump";
+    private final String CREATE_ORDER = "https://platformpcgateway.polyt.cn/api/1.0/platformOrder/createOrder";
+    private final String GET_PAY_CODE = "https://platformpcgateway.polyt.cn/api/1.0/unionpay/getUnionPayQrCode";
     private Project project = null;
 
     public Project GetProjectDetail(String url) {
@@ -66,6 +68,12 @@ public class ShowService {
                 for (Object show : shows) {
                     ShowDetail detail = JSONUtils.json2pojo(show.toString(), ShowDetail.class);
                     detail.setProjectId(project.getProjectId());
+                    detail.getTicketPriceList().sort((o1, o2) -> {
+                        if (o1.getTotalPrices() == o2.getTotalPrices()) {
+                            return 0;
+                        }
+                        return o1.getTotalPrices() > o2.getTotalPrices() ? -1 : 1;
+                    });
                     GetShowSections(detail);
                     project.getShows().add(detail);
                 }
@@ -135,5 +143,113 @@ public class ShowService {
             ex.printStackTrace();
         }
         return null;
+    }
+
+    public String CommitOnSeat(OrderInfo order) {
+        JSONObject body = new JSONObject();
+        body.put("channelId", "");
+        body.put("priceList", order.getPriceList());
+        body.put("projectId", order.getProjectId());
+        body.put("seriesId", "");
+        body.put("showId", order.getShowId());
+        body.put("showTime", order.getShowTime());
+        String res = HttpUtils.reqProcessor(COMMIT_ON_SEAT, "POST", "detail", body);
+        try {
+            JSONObject resultObj = JSONObject.parseObject(res);
+            String result = resultObj.getBooleanValue("success") ? "success" : "failed";
+            String data = resultObj.getString("data");
+            if (result.equals("success") && resultObj.getIntValue("code") == 200 && data != null) {
+                order.setUuid(data);
+                return "success";
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return null;
+    }
+
+    public String CreateJump(OrderInfo orderInfo) {
+        JSONObject body = new JSONObject();
+        body.put("uuid", orderInfo.getUuid());
+        String res = HttpUtils.reqProcessor(CREATE_JUMP, "POST", "detail", body);
+        try {
+            JSONObject resultObj = JSONObject.parseObject(res);
+            String result = resultObj.getBooleanValue("success") ? "success" : "failed";
+            JSONObject data = resultObj.getJSONObject("data");
+            if (result.equals("success") && resultObj.getIntValue("code") == 200 && data != null) {
+                orderInfo.setGetTicketPhone(data.getString("defaultPhone"));
+                return "success";
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return null;
+    }
+
+    public OrderPayInfo CreateOrder(OrderInfo info) {
+        JSONObject body = new JSONObject();
+        body.put("channelId", null);
+        body.put("consignee", info.getGetTicketName());
+        body.put("consigneePhonr", info.getGetTicketPhone());
+        body.put("deliveryWay", "01");
+        body.put("movieIds", info.getWatchers());
+        body.put("orderFreightAmt", 0);
+        body.put("payWayCode", info.getPayWay());
+        body.put("seriesId", "");
+        body.put("uuid", "");
+        String res = HttpUtils.reqProcessor(CREATE_ORDER, "POST", "detail", body);
+        try {
+            JSONObject resultObj = JSONObject.parseObject(res);
+            String result = resultObj.getBooleanValue("success") ? "success" : "failed";
+            JSONObject data = resultObj.getJSONObject("data");
+            if (result.equals("success") && resultObj.getIntValue("code") == 200 && data != null) {
+                return JSONObject.parseObject(data.toString(), OrderPayInfo.class);
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return null;
+    }
+
+    public String GetPayCode(OrderPayInfo payInfo) {
+        JSONObject body = new JSONObject();
+        body.put("isRecharge", "0");
+        body.put("orderId", payInfo.getOrderId());
+        body.put("returnUrl", "https://www.polyt.cn/paySuccess/" + payInfo.getOrderId() + "/0");
+        String res = HttpUtils.reqProcessor(GET_PAY_CODE, "POST", "pay", body);
+        try {
+            JSONObject resultObj = JSONObject.parseObject(res);
+            String result = resultObj.getBooleanValue("success") ? "success" : "failed";
+            JSONObject data = resultObj.getJSONObject("data");
+            if (result.equals("success") && resultObj.getIntValue("code") == 200 && data != null) {
+                WebSocketServer.getInstance().broadcast(data.toString());
+                return "success";
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return "failed";
+    }
+
+    public String StartClaw(OrderDto dto) {
+        if (project == null) {
+            project = JSONObject.parseObject(dto.getProjectInfo(), Project.class);
+        }
+        if (project != null) {
+            for (ShowDetail show : project.getShows()) {
+                if (show.getShowId() == dto.getShowId()) {
+                    ClawBus.getIns().setShowDetail(show);
+                    ClawBus.getIns().StartClaw(dto);
+                    return "success";
+                }
+            }
+        }
+        WebSocketServer.getInstance().broadcast("抢票启动失败");
+        return "failed";
+    }
+
+    public String StopClaw() {
+        ClawBus.getIns().StopClaw();
+        return "success";
     }
 }
