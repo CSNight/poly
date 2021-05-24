@@ -26,11 +26,11 @@ public class SpringContextEvent implements ApplicationListener<ApplicationEvent>
             wss.setPort(wsPort);
             try {
                 wss.run();
+                Runtime.getRuntime().exec("open http://127.0.0.1:8020");
             } catch (Exception e) {
                 e.printStackTrace();
             }
             _log.info("Storm Server Start Complete!");
-            System.out.println("复制网址浏览器打开->  http://127.0.0.1:8020");
         } else if (applicationEvent instanceof ContextClosedEvent) {
             wss.shutdown();
             _log.info("Storm Server Stop Complete!");
