@@ -24,7 +24,7 @@ public class UserService {
     private final String GET_TOKEN = "https://platformpcgateway.polyt.cn/api/1.0/common/getToken";
 
     public UserService() {
-        HttpUtils.reqProcessor("https://polyt.cn", "GET", "", new JSONObject());
+        HttpUtils.reqProcessor("https://polyt.cn", "POST", "", new JSONObject());
     }
 
     public PolyUser getPolyUser() {
