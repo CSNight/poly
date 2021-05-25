@@ -7,6 +7,7 @@
     <script th:src="@{js/axios.js}"></script>
     <script th:src="@{js/vue2.6.12.js}"></script>
     <script th:src="@{js/websocket.js}"></script>
+    <script th:src="@{js/qrcode.min.js}"></script>
     <script src="https://g.alicdn.com/AWSC/AWSC/awsc.js"></script>
     <style>
         html, body {
@@ -95,7 +96,11 @@
                 <el-form inline label-width="90px" style="width: 100%">
                     <el-form-item>
                         <el-button type="primary" size="mini" :disabled="clawStatus" @click="startClaw">开始</el-button>
-                        <el-button type="danger" size="mini" :loading="clawLoading" @click="stopClaw">停止</el-button>
+                        <el-button type="danger" size="mini" :disabled="!clawStatus" :loading="clawLoading"
+                                   @click="stopClaw">停止
+                        </el-button>
+                        <el-button size="mini" type="text" v-if="showOrder" @click="showDialog">付款</el-button>
+                        <el-button size="mini" type="text" v-if="showOrder" @click="cancelOrder">取消订单</el-button>
                     </el-form-item>
                 </el-form>
             </div>
@@ -104,10 +109,54 @@
             <el-button @click="prev" size="mini" v-if="active>1">上一步</el-button>
             <el-button @click="next" size="mini" v-if="active<2">下一步</el-button>
         </div>
+        <el-table v-if="orderDetail" border style="width: 100%;margin: 10px" size="mini"
+                  :header-cell-style="{backgroundColor:'#fbfbfb',color:'#606266'}"
+                  :data="orderDetail.orderDetailList">
+            <el-table-column prop="projectName" align="center" label="商品名称"></el-table-column>
+            <el-table-column prop="showSessions" align="center" label="时间"></el-table-column>
+            <el-table-column prop="seatName" align="center" label="座位号">
+            </el-table-column>
+            <el-table-column prop="price" align="center" label="原价">
+                <template slot-scope="scope">
+                    <span>¥{{ (parseFloat(scope.row.price)).toFixed(2) }}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="salePolicy" align="center" label="销售政策">
+            </el-table-column>
+            <el-table-column prop="payPrivilege" align="center" label="优惠金额">
+                <template slot-scope="scope">
+                    <span>¥{{ (parseFloat(scope.row.payPrivilege)).toFixed(2) }}</span>
+                </template>
+            </el-table-column>
+            <el-table-column prop="paidPrice" align="center" label="实收金额">
+                <template slot-scope="scope">
+                    <span>¥{{ (parseFloat(scope.row.paidPrice)).toFixed(2) }}</span>
+                </template>
+            </el-table-column>
+        </el-table>
         <el-divider content-position="center">抢票日志</el-divider>
         <el-input type="textarea" v-model="log" :rows="10"/>
     </div>
+    <el-dialog v-if="orderPayInfo" title="支付订单" :visible.sync="dialog" center width="20%" @opened="dialogOpen">
+        <el-card style="width: 100%;height: 100%">
+            <div slot="header" style="display: flex;align-items: center;justify-content: space-between">
+                <el-select size="mini" v-model="orderPayInfo.payWayCode" disabled>
+                    <el-option v-for="t in payList" :key="t.v" :value="t.v" :label="t.l"></el-option>
+                </el-select>
+                <el-button icon="el-icon-refresh" size="mini" type="text" @click="getPayInfo"/>
+            </div>
+            <div style="display: flex;align-items: center;justify-content: center;width: 100%;height: 300px;flex-wrap: wrap;">
+                <div style="width: 200px;text-align: center">剩余支付时间{{
+                        Number(payInfoRes.totalExpire / 60).toFixed(0)
+                    }}分{{ Number(payInfoRes.totalExpire % 60).toFixed(0) }}秒
+                    总价{{ payInfoRes.price }}
+                </div>
+                <div id="qrcode" style="width: 200px;height: 200px"></div>
+            </div>
+        </el-card>
+    </el-dialog>
 </div>
+
 <script th:src="@{js/element.js}"></script>
 <script type="text/javascript">
     Vue.prototype.$dws = new websocket();
@@ -157,10 +206,21 @@
             showCodeInput: false,
             checkIf: false,
             showCountDown: false,
+            checkPayCount: null,
             showLogin: true,
+            showOrder: false,
+            totalExpire: 0,
             loginLoading: false,
             clawLoading: false,
             clawStatus: false,
+            dialog: false,
+            payInfoRes: {
+                payQrCode: null,
+                totalExpire: 0,
+                price: 0,
+            },
+            orderDetail: null,
+            orderPayInfo: null,
             service: axios.create({
                 baseURL: "http://127.0.0.1:8020/", // url = base url + request url
                 withCredentials: true, // send cookies when cross-domain requests
@@ -170,21 +230,49 @@
         created() {
             this.init();
             this.$dws.on("msg", (e) => {
+                if (e === "抢票停止" || e === "恭喜抢票成功") {
+                    this.clawStatus = false;
+                    this.clawLoading = false;
+                }
+                if (e.indexOf("订单$") !== -1) {
+                    this.orderPayInfo = JSON.parse(e.split("$")[1])
+                    localStorage.setItem("payInfo", e.split("$")[1])
+                    this.getPayInfo();
+                }
                 this.log += `${new Date().toLocaleString()} ${e} \n`;
+                if (this.log.length > 5000) {
+                    this.log = this.log.substring(4000, this.log.length - 1)
+                }
             }, "123");
             this.$dws.connect("ws://127.0.0.1:13245/websocket_stream");
         },
         methods: {
+            showDialog() {
+                this.getPayInfo();
+            },
             init() {
                 this.getToken();
                 this.loadCk(localStorage.getItem("cookies")).then(() => {
                 }).finally(() => {
-                    this.checkUser();
+                    if (localStorage.getItem("userModel")) {
+                        this.userModel = JSON.parse(localStorage.getItem("userModel"));
+                        this.showUserList = this.userModel.watchers;
+                        this.showLogin = false;
+                        this.nextStep();
+                    } else {
+                        this.checkUser();
+                    }
                 })
                 if (localStorage.getItem("project")) {
                     this.projectInfo = JSON.parse(localStorage.getItem("project"))
                     this.showForm.url = this.projectInfo.url;
                     this.showList = this.projectInfo.shows;
+                }
+                if (localStorage.getItem("payInfo")) {
+                    this.orderPayInfo = JSON.parse(localStorage.getItem("payInfo"));
+                    this.showOrder = true;
+                    this.getPayInfo();
+                    this.nextStep();
                 }
             },
             next() {
@@ -223,7 +311,8 @@
                         if (resp.data.message.cookie.length > 1) {
                             this.showUserList = resp.data.message.watchers;
                             this.userModel = resp.data.message;
-                            window.localStorage.setItem("cookies", this.userModel.cookie.join(";"))
+                            localStorage.setItem("userModel", JSON.stringify(resp.data.message))
+                            localStorage.setItem("cookies", this.userModel.cookie.join(";"))
                             this.showLogin = false;
                             this.nextStep();
                         }
@@ -281,6 +370,88 @@
                     })
                 }
             },
+            getPayInfo() {
+                if (this.checkPayCount) {
+                    clearInterval(this.checkPayCount)
+                }
+                this.service.post("project/getPay", this.orderPayInfo).then((resp) => {
+                    if (resp.data.status === 200 && resp.data.code === 'OK') {
+                        let pay = JSON.parse(resp.data.message)
+                        this.payInfoRes.payQrCode = pay.qrCode
+                        this.payInfoRes.totalExpire = pay.between
+                        this.payInfoRes.price = pay.salesOrderAmt
+                        this.showOrder = true;
+                        this.dialog = true;
+                        this.checkPayCount = setInterval(() => {
+                            this.checkPay()
+                            this.payInfoRes.totalExpire--;
+                            this.log += "付款等待中...\n"
+                        }, 1000);
+                    }
+                })
+            },
+            dialogOpen() {
+                new QRCode(document.getElementById("qrcode"), {
+                    text: this.payInfoRes.payQrCode,
+                    width: 200,
+                    height: 200,
+                })
+            },
+            checkPay() {
+                if (!this.dialog) {
+                    clearInterval(this.checkPayCount)
+                }
+                this.service.post("project/checkPay/" + this.orderPayInfo.orderId).then((resp) => {
+                    if (resp.data.status === 200 && resp.data.message === 'success') {
+                        clearInterval(this.checkPayCount)
+                        this.showOrder = false;
+                        this.dialog = false;
+                        localStorage.removeItem("payInfo");
+                        this.$message({
+                            type: 'success',
+                            message: '订单支付成功'
+                        });
+                        this.getPayComplete();
+                    }
+                })
+            },
+            getPayComplete() {
+                this.service.post("project/getPayComplete/" + this.orderPayInfo.orderId).then((resp) => {
+                    if (resp.data.status === 200 && resp.data.message === 'success') {
+                        this.orderDetail = resp.data.message;
+                    }
+                })
+            },
+            cancelOrder() {
+                this.$confirm('取消订单, 是否继续?', '提示', {
+                    confirmButtonText: '确定',
+                    cancelButtonText: '取消',
+                    type: 'warning'
+                }).then(() => {
+                    this.service.delete("project/cancelOrder/" + this.orderPayInfo.orderId).then((resp) => {
+                        if (resp.data.status === 200 && resp.data.message === 'success') {
+                            clearInterval(this.checkPayCount)
+                            this.showOrder = false;
+                            this.dialog = false;
+                            localStorage.removeItem("payInfo")
+                            this.$message({
+                                type: 'success',
+                                message: '已取消订单'
+                            });
+                        } else {
+                            this.$message({
+                                type: 'error',
+                                message: '取消订单失败'
+                            });
+                        }
+                    })
+                }).catch(() => {
+                    this.$message({
+                        type: 'info',
+                        message: '已取消'
+                    });
+                })
+            },
             selectShow(e) {
                 this.seatGradeList = [];
                 for (let i = 0; i < this.showList.length; i++) {
@@ -292,6 +463,7 @@
             startClaw() {
                 this.$refs['orderForm'].validate((valid) => {
                     if (valid) {
+                        this.showOrder = false;
                         this.orderForm.showId = this.showForm.showId;
                         this.orderForm.projectInfo = JSON.stringify(this.projectInfo);
                         this.service.post("project/startClaw", this.orderForm).then((resp) => {
