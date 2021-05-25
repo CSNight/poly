@@ -117,7 +117,7 @@ public class HttpUtils {
 
     public static String reqProcessor(String url, String method, String httpType, JSONObject body) {
         String result = "";
-        HttpRequestBase requestBase = HttpUtils.getHttpRequest(url, method);
+        HttpPost requestBase = (HttpPost) HttpUtils.getHttpRequest(url, method);
         try {
             requestBase.addHeader("Cookie", String.join(";", cookies.values().toArray(new String[]{})));
             requestBase.addHeader("httpType", httpType);
@@ -125,12 +125,11 @@ public class HttpUtils {
             model.put("timestamp", System.currentTimeMillis());
             if (body != null) {
                 body.put("requestModel", model);
-                String sortBody = JSONObject.toJSONString(body, SerializerFeature.SortField);
+                String sortBody = JSONObject.toJSONString(body, SerializerFeature.MapSortField);
                 String aToken = IdentifyUtils.string2MD5(sortBody + "plat_pc", "");
                 body.getJSONObject("requestModel").put("atoken", aToken);
                 if (method.equals("POST")) {
-                    HttpPost req = (HttpPost) requestBase;
-                    req.setEntity(new StringEntity(body.toString()));
+                    requestBase.setEntity(new StringEntity(body.toString(), "application/json", "utf-8"));
                 }
             }
         } catch (Exception e) {
