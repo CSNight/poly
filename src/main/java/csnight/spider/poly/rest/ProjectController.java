@@ -2,6 +2,7 @@ package csnight.spider.poly.rest;
 
 import csnight.spider.poly.aop.LogAsync;
 import csnight.spider.poly.logic.ShowService;
+import csnight.spider.poly.model.OrderPayInfo;
 import csnight.spider.poly.rest.dto.OrderDto;
 import csnight.spider.poly.utils.RespTemplate;
 import io.swagger.annotations.Api;
@@ -52,5 +53,33 @@ public class ProjectController {
     @RequestMapping(value = "/stopClaw", method = RequestMethod.PUT)
     public RespTemplate StopClaw() {
         return new RespTemplate(HttpStatus.OK, showService.StopClaw());
+    }
+
+    @LogAsync
+    @ApiOperation(value = "获取付款信息")
+    @RequestMapping(value = "/getPay", method = RequestMethod.POST)
+    public RespTemplate GetPay(@RequestBody OrderPayInfo payInfo) {
+        return new RespTemplate(HttpStatus.OK, showService.GetPayCode(payInfo));
+    }
+
+    @LogAsync
+    @ApiOperation(value = "检查付款状态")
+    @RequestMapping(value = "/checkPay/{orderId}", method = RequestMethod.POST)
+    public RespTemplate CheckPayStatus(@PathVariable String orderId) {
+        return new RespTemplate(HttpStatus.OK, showService.CheckPay(orderId));
+    }
+
+    @LogAsync
+    @ApiOperation(value = "取消订单")
+    @RequestMapping(value = "/cancelOrder/{orderId}", method = RequestMethod.DELETE)
+    public RespTemplate CancelOrder(@PathVariable String orderId) {
+        return new RespTemplate(HttpStatus.OK, showService.CancelOrder(orderId));
+    }
+
+    @LogAsync
+    @ApiOperation(value = "订单详情")
+    @RequestMapping(value = "/getPayComplete/{orderId}", method = RequestMethod.POST)
+    public RespTemplate PayComplete(@PathVariable String orderId) {
+        return new RespTemplate(HttpStatus.OK, showService.GetPayComplete(orderId));
     }
 }
