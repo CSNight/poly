@@ -22,6 +22,9 @@ public class ShowService {
     private final String CREATE_JUMP = "https://platformpcgateway.polyt.cn/api/1.0/platformOrder/createQuickOrderJump";
     private final String CREATE_ORDER = "https://platformpcgateway.polyt.cn/api/1.0/platformOrder/createOrder";
     private final String GET_PAY_CODE = "https://platformpcgateway.polyt.cn/api/1.0/unionpay/getUnionPayQrCode";
+    private final String CHECK_PAY = "https://platformpcgateway.polyt.cn/api/1.0/unionpay/checkOrderTicketStatus";
+    private final String CANCEL_ORDER = "https://platformpcgateway.polyt.cn/api/1.0/myOrder/cancelOrder";
+    private final String GET_PAY_COMPLETE = "https://platformpcgateway.polyt.cn/api/1.0/unionpay/orderInfoForPayComplete";
     private Project project = null;
 
     public Project GetProjectDetail(String url) {
@@ -165,7 +168,7 @@ public class ShowService {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return null;
+        return "failed";
     }
 
     public String CreateJump(OrderInfo orderInfo) {
@@ -183,10 +186,10 @@ public class ShowService {
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return null;
+        return "failed";
     }
 
-    public OrderPayInfo CreateOrder(OrderInfo info) {
+    public String CreateOrder(OrderInfo info) {
         JSONObject body = new JSONObject();
         body.put("channelId", null);
         body.put("consignee", info.getGetTicketName());
@@ -196,19 +199,19 @@ public class ShowService {
         body.put("orderFreightAmt", 0);
         body.put("payWayCode", info.getPayWay());
         body.put("seriesId", "");
-        body.put("uuid", "");
+        body.put("uuid", info.getUuid());
         String res = HttpUtils.reqProcessor(CREATE_ORDER, "POST", "detail", body);
         try {
             JSONObject resultObj = JSONObject.parseObject(res);
             String result = resultObj.getBooleanValue("success") ? "success" : "failed";
-            JSONObject data = resultObj.getJSONObject("data");
+            String data = resultObj.getString("data");
             if (result.equals("success") && resultObj.getIntValue("code") == 200 && data != null) {
-                return JSONObject.parseObject(data.toString(), OrderPayInfo.class);
+                return data;
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
-        return null;
+        return "failed";
     }
 
     public String GetPayCode(OrderPayInfo payInfo) {
@@ -223,12 +226,67 @@ public class ShowService {
             JSONObject data = resultObj.getJSONObject("data");
             if (result.equals("success") && resultObj.getIntValue("code") == 200 && data != null) {
                 WebSocketServer.getInstance().broadcast(data.toString());
+                return data.toString();
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return null;
+    }
+
+    public String CheckPay(String orderId) {
+        JSONObject body = new JSONObject();
+        body.put("orderId", orderId);
+        body.put("isRecharge", "0");
+        String res = HttpUtils.reqProcessor(CHECK_PAY, "POST", "pay", body);
+        try {
+            JSONObject resultObj = JSONObject.parseObject(res);
+            String result = resultObj.getBooleanValue("success") ? "success" : "failed";
+            boolean data = resultObj.getBooleanValue("data");
+            if (result.equals("success") && resultObj.getIntValue("code") == 200 && data) {
+                WebSocketServer.getInstance().broadcast("支付成功");
                 return "success";
             }
         } catch (Exception ex) {
             ex.printStackTrace();
         }
         return "failed";
+    }
+
+    public String CancelOrder(String orderId) {
+        JSONObject body = new JSONObject();
+        body.put("orderId", orderId);
+        String res = HttpUtils.reqProcessor(CANCEL_ORDER, "POST", "member", body);
+        try {
+            JSONObject resultObj = JSONObject.parseObject(res);
+            String result = resultObj.getBooleanValue("success") ? "success" : "failed";
+            boolean data = resultObj.getBooleanValue("data");
+            if (result.equals("success") && resultObj.getIntValue("code") == 200 && data) {
+                WebSocketServer.getInstance().broadcast("订单取消");
+                return "success";
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return "failed";
+    }
+
+    public JSONObject GetPayComplete(String orderId) {
+        JSONObject body = new JSONObject();
+        body.put("orderId", orderId);
+        body.put("isRecharge", "0");
+        String res = HttpUtils.reqProcessor(GET_PAY_COMPLETE, "POST", "detail", body);
+        try {
+            JSONObject resultObj = JSONObject.parseObject(res);
+            String result = resultObj.getBooleanValue("success") ? "success" : "failed";
+            JSONObject data = resultObj.getJSONObject("data");
+            if (result.equals("success") && resultObj.getIntValue("code") == 200 && data != null) {
+                return data;
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        return null;
     }
 
     public String StartClaw(OrderDto dto) {
