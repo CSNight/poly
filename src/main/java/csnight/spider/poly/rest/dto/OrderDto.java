@@ -14,13 +14,12 @@ public class OrderDto {
     @NotNull
     @NotEmpty
     private String showWatcher;
-    @NotNull
-    @NotEmpty
-    private String level;
+    private int level;
     @Min(1)
     private int showId;
     private String payWay;
     private boolean autoDownGrade;
+    private int clazz = 0;
 
     public String getProjectInfo() {
         return projectInfo;
@@ -54,11 +53,11 @@ public class OrderDto {
         this.showWatcher = showWatcher;
     }
 
-    public String getLevel() {
+    public int getLevel() {
         return level;
     }
 
-    public void setLevel(String level) {
+    public void setLevel(int level) {
         this.level = level;
     }
 
@@ -76,5 +75,13 @@ public class OrderDto {
 
     public void setAutoDownGrade(boolean autoDownGrade) {
         this.autoDownGrade = autoDownGrade;
+    }
+
+    public int getClazz() {
+        return clazz;
+    }
+
+    public void setClazz(int clazz) {
+        this.clazz = clazz;
     }
 }
