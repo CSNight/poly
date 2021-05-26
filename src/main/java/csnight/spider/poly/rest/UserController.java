@@ -35,6 +35,13 @@ public class UserController {
     }
 
     @LogAsync
+    @ApiOperation(value = "登出")
+    @RequestMapping(value = "/logout", method = RequestMethod.PUT)
+    public RespTemplate Logout() {
+        return new RespTemplate(HttpStatus.OK, userService.Logout());
+    }
+
+    @LogAsync
     @ApiOperation(value = "用户检查")
     @RequestMapping(value = "/checkUser", method = RequestMethod.GET)
     public RespTemplate CheckLoginUser() {

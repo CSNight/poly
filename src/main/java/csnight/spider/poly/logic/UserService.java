@@ -17,6 +17,7 @@ import java.util.List;
 public class UserService {
     private PolyUser polyUser = new PolyUser();
     private final String LOGIN = "https://platformpcgateway.polyt.cn/api/1.0/login/fastLogin";
+    private final String LOGOUT = "https://platformpcgateway.polyt.cn/api/1.0/login/logout";
     private final String SEND_PHONE = "https://platformpcgateway.polyt.cn/api/1.0/login/checkCodeAndSendMsg";
     private final String CHECK_LOGIN = "https://platformpcgateway.polyt.cn/api/1.0/login/checkLogin";
     private final String GET_LOGIN_USER = "https://platformpcgateway.polyt.cn/api/1.0/login/getLoginUser";
@@ -38,7 +39,7 @@ public class UserService {
         String res = HttpUtils.reqProcessor(LOGIN, "POST", "passport", body);
         try {
             JSONObject resultObj = JSONObject.parseObject(res);
-            String result = resultObj.getString("msg").equals("OK") ? "success" : "failed";
+            String result = resultObj.getIntValue("code") == 200 ? "success" : "failed";
             WebSocketServer.getInstance().broadcast("登录：" + result);
             polyUser.setCookie(HttpUtils.cookies.values());
             return result;
@@ -46,6 +47,23 @@ public class UserService {
             ex.printStackTrace();
         }
         WebSocketServer.getInstance().broadcast("登录失败");
+        return "failed";
+    }
+
+    public String Logout() {
+        String res = HttpUtils.reqProcessor(LOGOUT, "POST", "passport", new JSONObject());
+        try {
+            JSONObject resultObj = JSONObject.parseObject(res);
+            String result = resultObj.getIntValue("code") == 200 ? "success" : "failed";
+            WebSocketServer.getInstance().broadcast("退出登录：" + result);
+            if (result.equals("success")) {
+                HttpUtils.cookies.clear();
+            }
+            return result;
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+        WebSocketServer.getInstance().broadcast("退出登录失败");
         return "failed";
     }
 
