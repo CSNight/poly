@@ -17,7 +17,11 @@
     </style>
 </head>
 <body>
-<div id="app" style="height:100vh;width:100%;display: flex;justify-content: center;align-items: center">
+<div id="app" style="height:100vh;width:100%;display: flex;justify-content: center;align-items: center;flex-wrap: wrap">
+    <div style="width: 100%;padding: 10px;display: flex;justify-content: flex-end" v-if="userModel">
+        <el-avatar size="small" :src="userModel.headImg"></el-avatar>
+        <el-button size="mini" style="margin-left: 15px" @click="logout">退出登录</el-button>
+    </div>
     <div style="width: 700px;display: block">
         <div style="width:100%;display: flex;justify-content: center;align-items: center;margin-bottom: 30px">
             <img style="width:200px;height:200px" alt="" th:src="@{img/logo.svg}"/>
@@ -33,7 +37,7 @@
                 <el-form-item label="电话" prop="phone">
                     <el-input style="width: 100%" size="mini" v-model="userForm.phone" @input="verifyPhone"/>
                 </el-form-item>
-                <el-form-item v-if="showCodeInput" label="验证码" prop="phoneCode">
+                <el-form-item v-if="ncModel" label="验证码" prop="phoneCode">
                     <el-input style="width: 100%" size="mini" v-model="userForm.phoneCode">
                         <el-button v-if="!showCountDown" style="padding-right:10px" slot="suffix" @click="getPhoneCheck"
                                    type="text">获取验证码
@@ -67,8 +71,7 @@
                          :rules="rulesOrder">
                     <el-form-item label="观影人" prop="showWatcher">
                         <el-select size="mini" v-model="orderForm.showWatcher" style="width: 120px">
-                            <el-option v-for="item in showUserList" :key="item.id" :value="item.id"
-                                       :label="item.name"></el-option>
+                            <el-option v-for="item in showUserList" :key="item.id" :value="item.id" :label="item.name"/>
                         </el-select>
                     </el-form-item>
                     <el-form-item label="座位席别" prop="level">
@@ -86,21 +89,20 @@
                             <el-option v-for="t in payList" :key="t.v" :value="t.v" :label="t.l"></el-option>
                         </el-select>
                     </el-form-item>
-                    <el-form-item label="取票人" prop="getTickName">
-                        <el-input size="mini" style="width: 100%" v-model="orderForm.getTickName"></el-input>
-                    </el-form-item>
-                    <el-form-item>
+                    <el-form-item label="重试机制">
                         <el-checkbox v-model="orderForm.autoDownGrade">自动降低座位等级重试</el-checkbox>
                     </el-form-item>
                 </el-form>
                 <el-form inline label-width="90px" style="width: 100%">
                     <el-form-item>
-                        <el-button type="primary" size="mini" :disabled="clawStatus" @click="startClaw">开始</el-button>
-                        <el-button type="danger" size="mini" :disabled="!clawStatus" :loading="clawLoading"
-                                   @click="stopClaw">停止
+                        <el-button type="primary" size="mini" v-if="!showOrder" :disabled="clawStatus"
+                                   @click="startClaw">开始
                         </el-button>
-                        <el-button size="mini" type="text" v-if="showOrder" @click="showDialog">付款</el-button>
-                        <el-button size="mini" type="text" v-if="showOrder" @click="cancelOrder">取消订单</el-button>
+                        <el-button type="danger" size="mini" v-if="!showOrder" :disabled="!clawStatus"
+                                   :loading="clawLoading" @click="stopClaw">停止
+                        </el-button>
+                        <el-button size="mini" type="success" v-if="showOrder" @click="getPayInfo">付款</el-button>
+                        <el-button size="mini" type="warning" v-if="showOrder" @click="cancelOrder">取消订单</el-button>
                     </el-form-item>
                 </el-form>
             </div>
@@ -110,19 +112,16 @@
             <el-button @click="next" size="mini" v-if="active<2">下一步</el-button>
         </div>
         <el-table v-if="orderDetail" border style="width: 100%;margin: 10px" size="mini"
-                  :header-cell-style="{backgroundColor:'#fbfbfb',color:'#606266'}"
                   :data="orderDetail.orderDetailList">
             <el-table-column prop="projectName" align="center" label="商品名称"></el-table-column>
             <el-table-column prop="showSessions" align="center" label="时间"></el-table-column>
-            <el-table-column prop="seatName" align="center" label="座位号">
-            </el-table-column>
+            <el-table-column prop="seatName" align="center" label="座位号"></el-table-column>
             <el-table-column prop="price" align="center" label="原价">
                 <template slot-scope="scope">
                     <span>¥{{ (parseFloat(scope.row.price)).toFixed(2) }}</span>
                 </template>
             </el-table-column>
-            <el-table-column prop="salePolicy" align="center" label="销售政策">
-            </el-table-column>
+            <el-table-column prop="salePolicy" align="center" label="销售政策"></el-table-column>
             <el-table-column prop="payPrivilege" align="center" label="优惠金额">
                 <template slot-scope="scope">
                     <span>¥{{ (parseFloat(scope.row.payPrivilege)).toFixed(2) }}</span>
@@ -176,7 +175,7 @@
                 getTickName: null,
                 showWatcher: null,
                 level: null,
-                autoDownGrade: true,
+                autoDownGrade: false,
                 payWay: "06",
             },
             rulesUser: {
@@ -195,25 +194,9 @@
             },
             payList: [{l: "微信支付", v: "06"}, {l: "支付宝支付", v: "05"}],
             active: 0,
-            countDown: 60,
             log: '',
             userModel: null,
             projectInfo: null,
-            showList: [],
-            showUserList: [],
-            seatGradeList: [],
-            ncModel: null,
-            showCodeInput: false,
-            checkIf: false,
-            showCountDown: false,
-            checkPayCount: null,
-            showLogin: true,
-            showOrder: false,
-            totalExpire: 0,
-            loginLoading: false,
-            clawLoading: false,
-            clawStatus: false,
-            dialog: false,
             payInfoRes: {
                 payQrCode: null,
                 totalExpire: 0,
@@ -221,6 +204,20 @@
             },
             orderDetail: null,
             orderPayInfo: null,
+            showList: [],
+            showUserList: [],
+            seatGradeList: [],
+            ncModel: null,
+            countDown: 60,
+            checkPayCount: null,
+            showLogin: true,
+            checkIf: false,
+            showOrder: false,
+            showCountDown: false,
+            loginLoading: false,
+            clawLoading: false,
+            clawStatus: false,
+            dialog: false,
             service: axios.create({
                 baseURL: "http://127.0.0.1:8020/", // url = base url + request url
                 withCredentials: true, // send cookies when cross-domain requests
@@ -247,9 +244,6 @@
             this.$dws.connect("ws://127.0.0.1:13245/websocket_stream");
         },
         methods: {
-            showDialog() {
-                this.getPayInfo();
-            },
             init() {
                 this.getToken();
                 this.loadCk(localStorage.getItem("cookies")).then(() => {
@@ -358,6 +352,21 @@
                     }
                 });
             },
+            logout() {
+                this.service.put("user/logout").then((resp) => {
+                    if (resp.data.status === 200 && resp.data.code === 'OK') {
+                        localStorage.removeItem("userModel")
+                        localStorage.removeItem("cookies")
+                        this.showLogin = true;
+                    }
+                    this.loginLoading = false;
+                    location.reload();
+                }).catch(() => {
+                    this.showLogin = true;
+                    this.loginLoading = false;
+                    location.reload();
+                })
+            },
             loadShowInfo() {
                 if (this.showForm.url && this.showForm.url !== "") {
                     this.resetShowForm()
@@ -464,6 +473,12 @@
                 this.$refs['orderForm'].validate((valid) => {
                     if (valid) {
                         this.showOrder = false;
+                        for (let i = 0; i < this.showUserList.length; i++) {
+                            if (this.showUserList[i].id === this.orderForm.showWatcher) {
+                                this.orderForm.getTickName = this.showUserList[i].name
+                                break;
+                            }
+                        }
                         this.orderForm.showId = this.showForm.showId;
                         this.orderForm.projectInfo = JSON.stringify(this.projectInfo);
                         this.service.post("project/startClaw", this.orderForm).then((resp) => {
@@ -511,7 +526,7 @@
                         this.initNc()
                     })
                 } else {
-                    window.ncModel = null
+                    this.ncModel = null
                 }
             },
             initNc() {
@@ -521,10 +536,6 @@
                         appkey: 'FFFF0N00000000009D3A', scene: 'nc_login_h5', renderTo: 'nc',
                         success: (data) => {
                             thisCallback.ncModel = data
-                            thisCallback.showCodeInput = true;
-                            console.log(data.sessionId)
-                            console.log(data.sig)
-                            console.log(data.token)
                         },
                         fail: (failCode) => {
                             console.log('fail', failCode)

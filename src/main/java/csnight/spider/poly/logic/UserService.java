@@ -57,6 +57,7 @@ public class UserService {
             String result = resultObj.getIntValue("code") == 200 ? "success" : "failed";
             WebSocketServer.getInstance().broadcast("退出登录：" + result);
             if (result.equals("success")) {
+                polyUser = new PolyUser();
                 HttpUtils.cookies.clear();
             }
             return result;
