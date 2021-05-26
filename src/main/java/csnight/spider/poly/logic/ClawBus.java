@@ -97,7 +97,7 @@ public class ClawBus {
         while (!stopSign.get()) {
             if (!orderQueue.isEmpty() || seatWithClass.isEmpty()) {
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(1000);
                 } catch (Exception e) {
                     e.printStackTrace();
                 }
@@ -151,7 +151,6 @@ public class ClawBus {
             if (orderPay.get() != null) {
                 return;
             }
-
             String resCommit = RetryMethod(service::CommitOnSeat, orderInfo);
             if (resCommit.equals("failed")) {
                 return;
@@ -206,28 +205,35 @@ public class ClawBus {
     public void StartClaw(OrderDto dto) {
         CleanStatus();
         seatRefreshPool = Executors.newScheduledThreadPool(2);
-        clawPool = new ThreadPoolExecutor(3, 20, 0L, TimeUnit.MILLISECONDS, workQueue);
-        clawPool.setRejectedExecutionHandler((e, a) -> {
-            System.out.println(e);
-        });
-        stopSign.set(false);
-        seatRefreshPool.scheduleAtFixedRate(this::GetClassSeat, 0, 10000, TimeUnit.MILLISECONDS);
-        seatRefreshPool.scheduleAtFixedRate(this::GetClassSeat, 1000, 10000, TimeUnit.MILLISECONDS);
-        WebSocketServer.getInstance().broadcast("抢票启动成功");
+        clawPool = new ThreadPoolExecutor(8, 50, 0L, TimeUnit.MILLISECONDS, workQueue);
+        seatRefreshPool.scheduleAtFixedRate(this::GetClassSeat, 0, 4000, TimeUnit.MILLISECONDS);
+        seatRefreshPool.scheduleAtFixedRate(this::GetClassSeat, 2000, 4000, TimeUnit.MILLISECONDS);
+        WebSocketServer.getInstance().broadcast("抢票启动成功！");
+        if (System.currentTimeMillis() < showDetail.getSaleBeginTime()) {
+            WebSocketServer.getInstance().broadcast("还未开始售票，轮训等待中...");
+            while (System.currentTimeMillis() < showDetail.getSaleBeginTime()) {
+                try {
+                    Thread.sleep(1000);
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+        WebSocketServer.getInstance().broadcast("抢票开始");
         clawPool.submit(() -> GenerateOrder(dto));
         clawPool.submit(() -> {
             while (!stopSign.get()) {
                 try {
-                    if (workQueue.size() > 2000) {
-                        Thread.sleep(1000);
+                    if (workQueue.remainingCapacity() < 10) {
+                        Thread.sleep(500);
                         continue;
                     }
                     OrderInfo orderInfo = orderQueue.poll();
                     if (orderInfo == null) {
-                        Thread.sleep(1000);
+                        Thread.sleep(500);
                         continue;
                     }
-                    Thread.sleep((long) (1000 + Math.random() * 400));
+                    Thread.sleep((long) (100 + Math.random() * 100));
                     clawPool.submit(() -> {
                         Job(orderInfo);
                     });
