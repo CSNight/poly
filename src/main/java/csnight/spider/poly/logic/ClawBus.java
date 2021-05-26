@@ -155,20 +155,17 @@ public class ClawBus {
             if (resCommit.equals("failed")) {
                 return;
             }
-            _log.info("提交座位成功；座位信息：" + orderInfo.getPriceList().getJSONObject(0).toString());
             WebSocketServer.getInstance().broadcast("提交座位成功；座位信息：" + orderInfo.getPriceList().getJSONObject(0).toString());
             String resJump = RetryMethod(service::CreateJump, orderInfo);
             if (resJump.equals("failed")) {
                 return;
             }
-            _log.info("提交订单跳转成功；联系方式为：" + orderInfo.getGetTicketPhone());
             WebSocketServer.getInstance().broadcast("提交订单跳转成功；联系方式为：" + orderInfo.getGetTicketPhone());
             String resOrder = RetryMethod(service::CreateOrder, orderInfo);
             if (resOrder.equals("failed")) {
                 return;
             }
             OrderPayInfo payInfo = JSONObject.parseObject(resOrder, OrderPayInfo.class);
-            _log.warn("订单已产生；订单号：" + payInfo.getOrderId());
             WebSocketServer.getInstance().broadcast("订单已产生；订单号：" + payInfo.getOrderId());
             if (orderPay.get() == null) {
                 orderPay.set(payInfo);
