@@ -26,7 +26,8 @@ public class SpringContextEvent implements ApplicationListener<ApplicationEvent>
             wss.setPort(wsPort);
             try {
                 wss.run();
-                Runtime.getRuntime().exec("open http://127.0.0.1:8020");
+                String OS = System.getProperty("os.name").toLowerCase();
+                Runtime.getRuntime().exec((OS.contains("windows") ? "rundll32 url.dll,FileProtocolHandler " : "open") + " http://127.0.0.1:8020");
             } catch (Exception e) {
                 e.printStackTrace();
             }
