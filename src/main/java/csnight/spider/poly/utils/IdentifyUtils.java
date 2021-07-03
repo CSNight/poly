@@ -1,7 +1,10 @@
 package csnight.spider.poly.utils;
 
 
+import java.math.BigInteger;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.UUID;
 
 public class IdentifyUtils {
@@ -28,27 +31,15 @@ public class IdentifyUtils {
      * MD5加码 生成32位md5码
      */
     public static String string2MD5(String inStr, String prefix) {
-        MessageDigest md5;
+        MessageDigest md = null;// 生成一个MD5加密计算摘要
         try {
-            md5 = MessageDigest.getInstance("MD5");
-        } catch (Exception e) {
+            md = MessageDigest.getInstance("MD5");
+        } catch (NoSuchAlgorithmException e) {
             e.printStackTrace();
-            return "";
         }
-        char[] charArray = inStr.toCharArray();
-        byte[] byteArray = new byte[charArray.length];
-
-        for (int i = 0; i < charArray.length; i++)
-            byteArray[i] = (byte) charArray[i];
-        byte[] md5Bytes = md5.digest(byteArray);
-        StringBuilder hexValue = new StringBuilder();
-        for (byte md5Byte : md5Bytes) {
-            int val = ((int) md5Byte) & 0xff;
-            if (val < 16)
-                hexValue.append("0");
-            hexValue.append(Integer.toHexString(val));
-        }
-        return prefix + hexValue.toString();
-
+        assert md != null;
+        md.update(inStr.getBytes(StandardCharsets.UTF_8));// 计算md5函数
+        String hashedPwd = new BigInteger(1, md.digest()).toString(16);// 16是表示转换为16进制数
+        return prefix + hashedPwd;
     }
 }

@@ -152,7 +152,7 @@ public class ShowService {
         JSONObject body = new JSONObject();
         body.put("channelId", "");
         body.put("priceList", order.getPriceList());
-        body.put("projectId", order.getProjectId());
+        body.put("projectId", Integer.parseInt(project.getProductId()));
         body.put("seriesId", "");
         body.put("showId", order.getShowId());
         body.put("showTime", order.getShowTime());

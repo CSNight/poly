@@ -127,9 +127,9 @@ public class HttpUtils {
                 body.put("requestModel", model);
                 String sortBody = JSONObject.toJSONString(body, SerializerFeature.MapSortField);
                 String aToken = IdentifyUtils.string2MD5(sortBody + "plat_pc", "");
-                body.getJSONObject("requestModel").put("atoken", aToken);
+                body.getJSONObject("requestModel").put("atgc", aToken);
                 if (method.equals("POST")) {
-                    requestBase.setEntity(new StringEntity(body.toString(), "application/json", "utf-8"));
+                    requestBase.setEntity(new StringEntity(JSONObject.toJSONString(body, SerializerFeature.MapSortField), "application/json", "utf-8"));
                 }
             }
         } catch (Exception e) {
