@@ -18,6 +18,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
 import java.util.HashMap;
@@ -143,7 +144,7 @@ public class HttpUtils {
             if (response.getStatusLine().getStatusCode() == 307) {
                 CloseableHttpResponse redResp = client.execute(requestBase);
                 byte[] respBytes = redResp.getEntity().getContent().readAllBytes();
-                result = new String(respBytes);
+                result = new String(respBytes, StandardCharsets.UTF_8);
                 redResp.close();
             } else {
                 Header[] headers = response.getHeaders("Set-Cookie");
@@ -154,7 +155,7 @@ public class HttpUtils {
                     }
                 }
                 byte[] respBytes = response.getEntity().getContent().readAllBytes();
-                result = new String(respBytes);
+                result = new String(respBytes, StandardCharsets.UTF_8);
             }
         } catch (Exception ex) {
             result = extractStackTrace(ex);
